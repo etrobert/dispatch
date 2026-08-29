@@ -9,10 +9,15 @@ if (pathToClaudeCodeExecutable === undefined) {
   throw new Error("CLAUDE_BIN must point at the claude executable");
 }
 
-export async function runAgent<Schema extends z.ZodType>(
-  prompt: string,
-  outputSchema: Schema,
-): Promise<{ sessionId: string; output: z.infer<Schema> }> {
+export async function runAgent<Schema extends z.ZodType>({
+  prompt,
+  cwd,
+  outputSchema,
+}: {
+  prompt: string;
+  cwd: string;
+  outputSchema: Schema;
+}): Promise<{ sessionId: string; output: z.infer<Schema> }> {
   // Assigning the id up front makes it a key the caller owns before the run.
   const sessionId = randomUUID();
 
@@ -22,6 +27,7 @@ export async function runAgent<Schema extends z.ZodType>(
   for await (const message of query({
     prompt,
     options: {
+      cwd,
       model: "haiku",
       pathToClaudeCodeExecutable,
       outputFormat: { type: "json_schema", schema },
