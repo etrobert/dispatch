@@ -14,9 +14,20 @@ if (pathToClaudeCodeExecutable === undefined) {
   throw new Error("CLAUDE_BIN must point at the claude executable");
 }
 
+const schema = {
+  type: "object",
+  properties: { summary: { type: "string" } },
+  required: ["summary"],
+  additionalProperties: false,
+};
+
 for await (const message of query({
   prompt,
-  options: { model: "haiku", pathToClaudeCodeExecutable },
+  options: {
+    model: "haiku",
+    pathToClaudeCodeExecutable,
+    outputFormat: { type: "json_schema", schema },
+  },
 })) {
   if (message.type !== "result") continue;
 
@@ -24,5 +35,5 @@ for await (const message of query({
     throw new Error(`claude did not succeed: ${message.subtype}`);
   }
 
-  console.log(message.result);
+  console.log(JSON.stringify(message.structured_output, null, 2));
 }
