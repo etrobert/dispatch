@@ -9,23 +9,24 @@ if (pathToClaudeCodeExecutable === undefined) {
   throw new Error("CLAUDE_BIN must point at the claude executable");
 }
 
-export async function runAgent<Schema extends z.ZodType>({
+export const MODEL = "haiku";
+
+export async function runStep<Schema extends z.ZodType>({
+  sessionId,
   prompt,
   cwd,
   outputSchema,
 }: {
+  sessionId: string;
   prompt: string;
   cwd: string;
   outputSchema: Schema;
 }): Promise<{
-  sessionId: string;
   costUsd: number;
   turns: number;
+  durationMs: number;
   output: z.infer<Schema>;
 }> {
-  // Assigning the id up front makes it a key the caller owns before the run.
-  const sessionId = randomUUID();
-
   // The CLI rejects the $schema key zod emits.
   const { $schema, ...schema } = z.toJSONSchema(outputSchema);
 
@@ -33,7 +34,7 @@ export async function runAgent<Schema extends z.ZodType>({
     prompt,
     options: {
       cwd,
-      model: "haiku",
+      model: MODEL,
       permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,
       pathToClaudeCodeExecutable,
@@ -54,9 +55,9 @@ export async function runAgent<Schema extends z.ZodType>({
     // A success result carries no structured output when the model gives up on
     // the schema, so parsing is the only thing that catches it.
     return {
-      sessionId,
       costUsd: message.total_cost_usd,
       turns: message.num_turns,
+      durationMs: message.duration_ms,
       output: outputSchema.parse(message.structured_output),
     };
   }
