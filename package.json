@@ -1,0 +1,12 @@
+{
+  "name": "dispatch",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && esbuild src/main.ts --bundle --target=node24 --platform=node --format=esm --outfile=dist/dispatch.mjs",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
