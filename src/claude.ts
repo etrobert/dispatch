@@ -16,22 +16,22 @@ export async function runStep<Schema extends z.ZodType>({
   prompt,
   cwd,
   outputSchema,
+  onToolFailure,
 }: {
   sessionId: string;
   prompt: string;
   cwd: string;
   outputSchema: Schema;
+  onToolFailure: (failure: ToolFailure) => Promise<void>;
 }): Promise<{
   costUsd: number;
   turns: number;
   durationMs: number;
   output: z.infer<Schema>;
-  toolFailures: ToolFailure[];
 }> {
   // The CLI rejects the $schema key zod emits.
   const { $schema, ...schema } = z.toJSONSchema(outputSchema);
 
-  const toolFailures: ToolFailure[] = [];
 
   for await (const message of query({
     prompt,
@@ -45,6 +45,8 @@ export async function runStep<Schema extends z.ZodType>({
       outputFormat: { type: "json_schema", schema },
       extraArgs: { "session-id": sessionId },
       hooks: {
+        // Recorded as it happens: a step that dies takes an in-memory list
+        // with it, and a failing step is the one whose failures matter most.
         PostToolUseFailure: [
           {
             hooks: [
@@ -52,7 +54,7 @@ export async function runStep<Schema extends z.ZodType>({
                 // The callback is typed against every hook event, so narrowing
                 // is what gets us the failure fields.
                 if (input.hook_event_name === "PostToolUseFailure") {
-                  toolFailures.push({
+                  await onToolFailure({
                     toolName: input.tool_name,
                     error: input.error,
                     durationMs: input.duration_ms ?? null,
@@ -84,7 +86,6 @@ export async function runStep<Schema extends z.ZodType>({
       turns: message.num_turns,
       durationMs: message.duration_ms,
       output: outputSchema.parse(message.structured_output),
-      toolFailures,
     };
   }
 

@@ -7,7 +7,7 @@ import { MODEL, runStep } from "./claude.js";
 import {
   failStep,
   finishStep,
-  recordToolFailures,
+  recordToolFailure,
   settleTask,
   startStep,
   type Db,
@@ -39,15 +39,15 @@ export async function runTask(
   });
 
   try {
-    const { costUsd, turns, durationMs, output, toolFailures } = await runStep({
+    const { costUsd, turns, durationMs, output } = await runStep({
       sessionId,
       prompt: task.description,
       cwd,
       outputSchema: z.object({ summary: z.string() }),
+      onToolFailure: (failure) => recordToolFailure(db, stepId, failure),
     });
 
     await finishStep(db, { stepId, output, costUsd, turns, durationMs });
-    await recordToolFailures(db, stepId, toolFailures);
     await settleTask(db, task.taskId, "done");
 
     console.log(`step ${stepId} · $${costUsd.toFixed(4)} · ${turns} turns`);

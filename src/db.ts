@@ -116,15 +116,10 @@ export async function failStep(
 
 // Written after the step finishes rather than as each failure arrives, so the
 // hook stays off the database and the step row it points at already exists.
-export async function recordToolFailures(
+export async function recordToolFailure(
   db: Db,
   stepId: string,
-  failures: { toolName: string; error: string; durationMs: number | null }[],
+  failure: { toolName: string; error: string; durationMs: number | null },
 ): Promise<void> {
-  // An insert with no rows is a syntax error.
-  if (failures.length === 0) return;
-
-  await db
-    .insert(toolFailures)
-    .values(failures.map((failure) => ({ stepId, ...failure })));
+  await db.insert(toolFailures).values({ stepId, ...failure });
 }
