@@ -29,6 +29,8 @@ export async function runAgent<Schema extends z.ZodType>({
     options: {
       cwd,
       model: "haiku",
+      permissionMode: "bypassPermissions",
+      allowDangerouslySkipPermissions: true,
       pathToClaudeCodeExecutable,
       outputFormat: { type: "json_schema", schema },
       extraArgs: { "session-id": sessionId },
