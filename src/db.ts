@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { steps, tasks } from "./schema.js";
 
@@ -15,10 +15,7 @@ export function openDb(): Db {
   return drizzle(url);
 }
 
-export async function createTask(
-  db: Db,
-  description: string,
-): Promise<string> {
+export async function createTask(db: Db, description: string): Promise<string> {
   const taskId = randomUUID();
 
   await db.insert(tasks).values({ taskId, description, state: "queued" });
@@ -30,10 +27,31 @@ export async function queuedTasks(db: Db) {
   return db.select().from(tasks).where(eq(tasks.state, "queued"));
 }
 
+// Conditional update rather than read-then-write, so two dispatchers racing for
+// the same task cannot both win it.
+export async function claimTask(db: Db, taskId: string) {
+  const [task] = await db
+    .update(tasks)
+    .set({ state: "running" })
+    .where(and(eq(tasks.taskId, taskId), eq(tasks.state, "queued")))
+    .returning();
+
+  return task;
+}
+
+export async function settleTask(
+  db: Db,
+  taskId: string,
+  state: "done" | "failed",
+): Promise<void> {
+  await db.update(tasks).set({ state }).where(eq(tasks.taskId, taskId));
+}
+
 export async function startStep(
   db: Db,
   step: {
     stepId: string;
+    taskId: string;
     sessionId: string;
     prompt: string;
     repo: string;

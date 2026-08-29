@@ -5,7 +5,6 @@ import {
   real,
   text,
   timestamp,
-
 } from "drizzle-orm/pg-core";
 
 export const tasks = pgTable("tasks", {
@@ -19,6 +18,7 @@ export const tasks = pgTable("tasks", {
 // deliberately not unique: a resumed session spans several steps.
 export const steps = pgTable("steps", {
   stepId: text("step_id").primaryKey(),
+  taskId: text("task_id").references(() => tasks.taskId),
   sessionId: text("session_id").notNull(),
   prompt: text("prompt").notNull(),
   repo: text("repo").notNull(),
