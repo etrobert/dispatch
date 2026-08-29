@@ -17,7 +17,7 @@ export async function runTask(
   const sessionId = randomUUID();
   const parent = await mkdtemp(join(tmpdir(), "dispatch-"));
   const cwd = join(parent, "worktree");
-  const branch = `dispatch/${parent.split("-").at(-1)}`;
+  const branch = `dispatch-${parent.split("-").at(-1)}`;
 
   createWorktree({ repo, path: cwd, branch });
   await startStep(db, {
