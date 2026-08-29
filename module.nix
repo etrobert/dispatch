@@ -43,6 +43,9 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # The operator commands (new-task, tasks, run) are the same binary.
+    environment.systemPackages = [ self.packages.${system}.default ];
+
     # The daemon needs write access to every repository it works on.
     users.users.dispatch = {
       isSystemUser = true;
@@ -62,6 +65,15 @@ in
           ensureDBOwnership = true;
         }
       ];
+
+      # soft logs in as the dispatch role rather than getting one of its own,
+      # so there is no second set of privileges to keep in step.
+      identMap = ''
+        dispatch-admins dispatch dispatch
+        dispatch-admins soft dispatch
+      '';
+
+      authentication = "local dispatch dispatch peer map=dispatch-admins";
     };
 
     systemd.services.dispatch = {
