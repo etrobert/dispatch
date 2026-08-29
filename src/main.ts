@@ -8,6 +8,10 @@ if (prompt === undefined) {
   process.exit(1);
 }
 
-const output = await runAgent(prompt, z.object({ summary: z.string() }));
+const { sessionId, output } = await runAgent(
+  prompt,
+  z.object({ summary: z.string() }),
+);
 
+console.log(`session ${sessionId}`);
 console.log(output.summary);

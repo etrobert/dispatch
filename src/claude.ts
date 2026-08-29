@@ -1,4 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 // Unset, the SDK runs its own bundled CLI, which misses the local config.
@@ -11,7 +12,10 @@ if (pathToClaudeCodeExecutable === undefined) {
 export async function runAgent<Schema extends z.ZodType>(
   prompt: string,
   outputSchema: Schema,
-): Promise<z.infer<Schema>> {
+): Promise<{ sessionId: string; output: z.infer<Schema> }> {
+  // Assigning the id up front makes it a key the caller owns before the run.
+  const sessionId = randomUUID();
+
   // The CLI rejects the $schema key zod emits.
   const { $schema, ...schema } = z.toJSONSchema(outputSchema);
 
@@ -21,6 +25,7 @@ export async function runAgent<Schema extends z.ZodType>(
       model: "haiku",
       pathToClaudeCodeExecutable,
       outputFormat: { type: "json_schema", schema },
+      extraArgs: { "session-id": sessionId },
     },
   })) {
     if (message.type !== "result") continue;
@@ -29,9 +34,13 @@ export async function runAgent<Schema extends z.ZodType>(
       throw new Error(`claude did not succeed: ${message.subtype}`);
     }
 
+    if (message.session_id !== sessionId) {
+      throw new Error(`session id not applied: got ${message.session_id}`);
+    }
+
     // A success result carries no structured output when the model gives up on
     // the schema, so parsing is the only thing that catches it.
-    return outputSchema.parse(message.structured_output);
+    return { sessionId, output: outputSchema.parse(message.structured_output) };
   }
 
   throw new Error("claude produced no result message");
