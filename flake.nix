@@ -47,6 +47,14 @@
             nodejs
             esbuild
           ];
+
+          shellHook = /* bash */ ''
+            CLAUDE_BIN=$(command -v claude) || {
+              echo "dispatch: claude not on PATH" >&2
+              return 1
+            }
+            export CLAUDE_BIN
+          '';
         };
       });
 

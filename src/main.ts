@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 
 const [prompt] = process.argv.slice(2);
 
@@ -7,29 +7,22 @@ if (prompt === undefined) {
   process.exit(1);
 }
 
-const child = spawn(
-  "claude",
-  ["--print", prompt, "--model", "haiku", "--output-format", "json"],
-  {
-    stdio: ["ignore", "pipe", "inherit"],
-  },
-);
+// Unset, the SDK runs its own bundled CLI, which misses the local config.
+const pathToClaudeCodeExecutable = process.env["CLAUDE_BIN"];
 
-let stdout = "";
-child.stdout.setEncoding("utf8");
-child.stdout.on("data", (chunk: string) => {
-  stdout += chunk;
-});
+if (pathToClaudeCodeExecutable === undefined) {
+  throw new Error("CLAUDE_BIN must point at the claude executable");
+}
 
-child.on("close", (code) => {
-  if (code !== 0) process.exit(code ?? 1);
+for await (const message of query({
+  prompt,
+  options: { model: "haiku", pathToClaudeCodeExecutable },
+})) {
+  if (message.type !== "result") continue;
 
-  // --output-format json emits an array of events; the outcome is the last one.
-  // TODO: parse securely somehow
-  const events = JSON.parse(stdout) as { result: string }[];
-  const final = events.at(-1);
-  if (final === undefined)
-    throw new Error(`no result in claude output: ${stdout}`);
+  if (message.subtype !== "success" || message.is_error) {
+    throw new Error(`claude did not succeed: ${message.subtype}`);
+  }
 
-  console.log(final.result);
-});
+  console.log(message.result);
+}
