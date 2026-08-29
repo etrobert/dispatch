@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { requireEnv } from "./env.js";
-import { steps, tasks } from "./schema.js";
+import { steps, tasks, toolFailures } from "./schema.js";
 
 export type Db = ReturnType<typeof drizzle>;
 
@@ -112,4 +112,14 @@ export async function failStep(
     .update(steps)
     .set({ status: "failed", error: step.error, finishedAt: new Date() })
     .where(eq(steps.stepId, step.stepId));
+}
+
+// Written after the step finishes rather than as each failure arrives, so the
+// hook stays off the database and the step row it points at already exists.
+export async function recordToolFailure(
+  db: Db,
+  stepId: string,
+  failure: { toolName: string; error: string; durationMs: number | null },
+): Promise<void> {
+  await db.insert(toolFailures).values({ stepId, ...failure });
 }

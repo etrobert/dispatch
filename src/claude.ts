@@ -1,4 +1,7 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import {
+  query,
+  type PostToolUseFailureHookInput,
+} from "@anthropic-ai/claude-agent-sdk";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireEnv } from "./env.js";
@@ -10,11 +13,13 @@ export async function runStep<Schema extends z.ZodType>({
   prompt,
   cwd,
   outputSchema,
+  onToolFailure,
 }: {
   sessionId: string;
   prompt: string;
   cwd: string;
   outputSchema: Schema;
+  onToolFailure: (failure: PostToolUseFailureHookInput) => Promise<void>;
 }): Promise<{
   costUsd: number;
   turns: number;
@@ -23,6 +28,7 @@ export async function runStep<Schema extends z.ZodType>({
 }> {
   // The CLI rejects the $schema key zod emits.
   const { $schema, ...schema } = z.toJSONSchema(outputSchema);
+
 
   for await (const message of query({
     prompt,
@@ -35,6 +41,25 @@ export async function runStep<Schema extends z.ZodType>({
       pathToClaudeCodeExecutable: requireEnv("CLAUDE_BIN"),
       outputFormat: { type: "json_schema", schema },
       extraArgs: { "session-id": sessionId },
+      hooks: {
+        // Recorded as it happens: a step that dies takes an in-memory list
+        // with it, and a failing step is the one whose failures matter most.
+        PostToolUseFailure: [
+          {
+            hooks: [
+              async (input) => {
+                // The callback is typed against every hook event, so narrowing
+                // is what gets us the failure fields.
+                if (input.hook_event_name === "PostToolUseFailure") {
+                  await onToolFailure(input);
+                }
+
+                return { continue: true };
+              },
+            ],
+          },
+        ],
+      },
     },
   })) {
     if (message.type !== "result") continue;

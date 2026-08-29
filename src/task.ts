@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { MODEL, runStep } from "./claude.js";
-import { failStep, finishStep, settleTask, startStep, type Db } from "./db.js";
+import {
+  failStep,
+  finishStep,
+  recordToolFailure,
+  settleTask,
+  startStep,
+  type Db,
+} from "./db.js";
 import { ensureRepo } from "./repos.js";
 import { createWorktree, removeWorktree } from "./worktree.js";
 
@@ -37,6 +44,12 @@ export async function runTask(
       prompt: task.description,
       cwd,
       outputSchema: z.object({ summary: z.string() }),
+      onToolFailure: (failure) =>
+        recordToolFailure(db, stepId, {
+          toolName: failure.tool_name,
+          error: failure.error,
+          durationMs: failure.duration_ms ?? null,
+        }),
     });
 
     await finishStep(db, { stepId, output, costUsd, turns, durationMs });
