@@ -1,9 +1,9 @@
 import { defineConfig } from "drizzle-kit";
 
-const url = process.env["DATABASE_URL"];
+const url = process.env["DISPATCH_DATABASE_URL"];
 
 if (url === undefined) {
-  throw new Error("DATABASE_URL must point at a postgres database");
+  throw new Error("DISPATCH_DATABASE_URL must point at a postgres database");
 }
 
 export default defineConfig({

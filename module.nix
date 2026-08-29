@@ -8,6 +8,9 @@ self:
 let
   cfg = config.services.dispatch;
   inherit (pkgs.stdenv.hostPlatform) system;
+
+  # soft reaches this through the ident map below, the daemon as itself.
+  databaseUrl = "postgresql://dispatch@/dispatch?host=/run/postgresql";
 in
 {
   options.services.dispatch = {
@@ -45,6 +48,7 @@ in
   config = lib.mkIf cfg.enable {
     # The operator commands (new-task, tasks, run) are the same binary.
     environment.systemPackages = [ self.packages.${system}.default ];
+    environment.variables.DISPATCH_DATABASE_URL = databaseUrl;
 
     # The daemon needs write access to every repository it works on.
     users.users.dispatch = {
@@ -89,7 +93,8 @@ in
       path = [ cfg.gitPackage ];
 
       environment = {
-        DATABASE_URL = "postgresql:///dispatch?host=/run/postgresql";
+        # A unit does not inherit environment.variables.
+        DISPATCH_DATABASE_URL = databaseUrl;
         CLAUDE_BIN = cfg.claudeBin;
         CLAUDE_CONFIG_DIR = "/var/lib/dispatch/claude";
       };

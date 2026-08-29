@@ -6,10 +6,10 @@ import { steps, tasks } from "./schema.js";
 export type Db = ReturnType<typeof drizzle>;
 
 export function openDb(): Db {
-  const url = process.env["DATABASE_URL"];
+  const url = process.env["DISPATCH_DATABASE_URL"];
 
   if (url === undefined) {
-    throw new Error("DATABASE_URL must point at a postgres database");
+    throw new Error("DISPATCH_DATABASE_URL must point at a postgres database");
   }
 
   return drizzle(url);
