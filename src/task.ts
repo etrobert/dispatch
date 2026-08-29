@@ -15,30 +15,43 @@ import {
 import { ensureRepo } from "./repos.js";
 import { createWorktree, removeWorktree } from "./worktree.js";
 
+// The task arrives already claimed, so every path out of here has to settle it.
+// Anything that escapes leaves the task `running` with nothing to pick it up
+// again: claimNextTask only ever claims `queued`.
 export async function runTask(
   db: Db,
   task: { taskId: string; repo: string; description: string },
 ): Promise<void> {
-  const repo = ensureRepo(task.repo);
-
   const stepId = randomUUID();
   const sessionId = randomUUID();
-  const parent = await mkdtemp(join(tmpdir(), "dispatch-"));
-  const cwd = join(parent, "worktree");
-  const branch = `dispatch-${parent.split("-").at(-1)}`;
 
-  createWorktree({ repo, path: cwd, branch, startPoint: "origin/HEAD" });
-  await startStep(db, {
-    stepId,
-    taskId: task.taskId,
-    sessionId,
-    prompt: task.description,
-    repo: task.repo,
-    branch,
-    model: MODEL,
-  });
+  // Set as each one succeeds, so the catch knows whether there is a step row to
+  // fail and the finally knows what there is to clean up.
+  let stepStarted = false;
+  let parent: string | undefined;
+  let worktree: { repo: string; path: string; branch: string } | undefined;
 
   try {
+    const repo = ensureRepo(task.repo);
+
+    parent = await mkdtemp(join(tmpdir(), "dispatch-"));
+    const cwd = join(parent, "worktree");
+    const branch = `dispatch-${parent.split("-").at(-1)}`;
+
+    createWorktree({ repo, path: cwd, branch, startPoint: "origin/HEAD" });
+    worktree = { repo, path: cwd, branch };
+
+    await startStep(db, {
+      stepId,
+      taskId: task.taskId,
+      sessionId,
+      prompt: task.description,
+      repo: task.repo,
+      branch,
+      model: MODEL,
+    });
+    stepStarted = true;
+
     const { costUsd, turns, durationMs, output } = await runStep({
       sessionId,
       prompt: task.description,
@@ -58,11 +71,15 @@ export async function runTask(
     console.log(`step ${stepId} · $${costUsd.toFixed(4)} · ${turns} turns`);
     console.log(output.summary);
   } catch (error) {
-    await failStep(db, { stepId, error: String(error) });
+    // Setting up the worktree fails before there is a step row to fail, and the
+    // task still has to settle.
+    if (stepStarted) await failStep(db, { stepId, error: String(error) });
     await settleTask(db, task.taskId, "failed");
     throw error;
   } finally {
-    removeWorktree({ repo, path: cwd, branch });
-    await rm(parent, { recursive: true });
+    // Only undo what was actually created: git refuses to remove a worktree
+    // that never got added, and that error would mask the real one.
+    if (worktree !== undefined) removeWorktree(worktree);
+    if (parent !== undefined) await rm(parent, { recursive: true });
   }
 }
