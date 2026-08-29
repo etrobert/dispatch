@@ -114,6 +114,7 @@ in
         # A unit does not inherit environment.variables.
         DISPATCH_DATABASE_URL = databaseUrl;
         DISPATCH_REPOS = reposDir;
+        DISPATCH_MIGRATIONS = "${self.packages.${system}.default}/libexec/migrations";
         CLAUDE_BIN = cfg.claudeBin;
         CLAUDE_CONFIG_DIR = "/var/lib/dispatch/claude";
 
