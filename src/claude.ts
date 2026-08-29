@@ -1,15 +1,12 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import {
+  query,
+  type PostToolUseFailureHookInput,
+} from "@anthropic-ai/claude-agent-sdk";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireEnv } from "./env.js";
 
 export const MODEL = "opus";
-
-export type ToolFailure = {
-  toolName: string;
-  error: string;
-  durationMs: number | null;
-};
 
 export async function runStep<Schema extends z.ZodType>({
   sessionId,
@@ -22,7 +19,7 @@ export async function runStep<Schema extends z.ZodType>({
   prompt: string;
   cwd: string;
   outputSchema: Schema;
-  onToolFailure: (failure: ToolFailure) => Promise<void>;
+  onToolFailure: (failure: PostToolUseFailureHookInput) => Promise<void>;
 }): Promise<{
   costUsd: number;
   turns: number;
@@ -54,11 +51,7 @@ export async function runStep<Schema extends z.ZodType>({
                 // The callback is typed against every hook event, so narrowing
                 // is what gets us the failure fields.
                 if (input.hook_event_name === "PostToolUseFailure") {
-                  await onToolFailure({
-                    toolName: input.tool_name,
-                    error: input.error,
-                    durationMs: input.duration_ms ?? null,
-                  });
+                  await onToolFailure(input);
                 }
 
                 return { continue: true };

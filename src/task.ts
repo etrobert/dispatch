@@ -44,7 +44,12 @@ export async function runTask(
       prompt: task.description,
       cwd,
       outputSchema: z.object({ summary: z.string() }),
-      onToolFailure: (failure) => recordToolFailure(db, stepId, failure),
+      onToolFailure: (failure) =>
+        recordToolFailure(db, stepId, {
+          toolName: failure.tool_name,
+          error: failure.error,
+          durationMs: failure.duration_ms ?? null,
+        }),
     });
 
     await finishStep(db, { stepId, output, costUsd, turns, durationMs });
