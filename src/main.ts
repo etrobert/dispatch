@@ -4,27 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { MODEL, runStep } from "./claude.js";
-import {
-  createTask,
-  failStep,
-  finishStep,
-  openDb,
-  queuedTasks,
-  startStep,
-} from "./db.js";
+import { newTask } from "./commands/new-task.js";
+import { failStep, finishStep, openDb, queuedTasks, startStep } from "./db.js";
 import { createWorktree, removeWorktree } from "./worktree.js";
 
 const [command, ...rest] = process.argv.slice(2);
 
 if (command === "new-task") {
-  const [description] = rest;
-
-  if (description === undefined) {
-    console.error("usage: dispatch new-task <description>");
-    process.exit(1);
-  }
-
-  console.log(await createTask(openDb(), description));
+  await newTask(rest);
   process.exit(0);
 }
 
