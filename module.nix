@@ -107,6 +107,7 @@ in
         pkgs.bashInteractive
         pkgs.gh
         pkgs.nix
+        pkgs.nodejs
       ];
 
       environment = {
