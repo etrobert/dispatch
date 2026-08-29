@@ -117,6 +117,11 @@ in
         CLAUDE_BIN = cfg.claudeBin;
         CLAUDE_CONFIG_DIR = "/var/lib/dispatch/claude";
 
+        # The dispatch user's home is /var/empty, so anything the agent runs
+        # that wants one — `npm ci` first among them — fails. The StateDirectory
+        # is the writable path systemd already creates and the daemon owns.
+        HOME = "/var/lib/dispatch";
+
         # git has no credentials of its own here; gh supplies them from GH_TOKEN.
         # Injected rather than written to a config file because the git wrapper
         # already owns GIT_CONFIG_GLOBAL.
