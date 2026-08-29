@@ -5,13 +5,14 @@ import { join } from "node:path";
 import { z } from "zod";
 import { MODEL, runStep } from "./claude.js";
 import { failStep, finishStep, settleTask, startStep, type Db } from "./db.js";
+import { ensureRepo } from "./repos.js";
 import { createWorktree, removeWorktree } from "./worktree.js";
 
 export async function runTask(
   db: Db,
   task: { taskId: string; repo: string; description: string },
 ): Promise<void> {
-  const { repo } = task;
+  const repo = ensureRepo(task.repo);
 
   const stepId = randomUUID();
   const sessionId = randomUUID();
@@ -19,13 +20,13 @@ export async function runTask(
   const cwd = join(parent, "worktree");
   const branch = `dispatch-${parent.split("-").at(-1)}`;
 
-  createWorktree({ repo, path: cwd, branch });
+  createWorktree({ repo, path: cwd, branch, startPoint: "origin/HEAD" });
   await startStep(db, {
     stepId,
     taskId: task.taskId,
     sessionId,
     prompt: task.description,
-    repo,
+    repo: task.repo,
     branch,
     model: MODEL,
   });

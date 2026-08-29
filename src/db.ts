@@ -1,18 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { requireEnv } from "./env.js";
 import { steps, tasks } from "./schema.js";
 
 export type Db = ReturnType<typeof drizzle>;
 
 export function openDb(): Db {
-  const url = process.env["DISPATCH_DATABASE_URL"];
-
-  if (url === undefined) {
-    throw new Error("DISPATCH_DATABASE_URL must point at a postgres database");
-  }
-
-  return drizzle(url);
+  return drizzle(requireEnv("DISPATCH_DATABASE_URL"));
 }
 
 export async function createTask(

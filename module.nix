@@ -11,6 +11,9 @@ let
 
   # soft reaches this through the ident map below, the daemon as itself.
   databaseUrl = "postgresql://dispatch@/dispatch?host=/run/postgresql";
+
+  # Bare clones dispatch owns, under its StateDirectory.
+  reposDir = "/var/lib/dispatch/repos";
 in
 {
   options.services.dispatch = {
@@ -95,6 +98,7 @@ in
       environment = {
         # A unit does not inherit environment.variables.
         DISPATCH_DATABASE_URL = databaseUrl;
+        DISPATCH_REPOS = reposDir;
         CLAUDE_BIN = cfg.claudeBin;
         CLAUDE_CONFIG_DIR = "/var/lib/dispatch/claude";
       };

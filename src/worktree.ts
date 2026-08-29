@@ -4,12 +4,16 @@ export function createWorktree({
   repo,
   path,
   branch,
+  startPoint,
 }: {
   repo: string;
   path: string;
   branch: string;
+  startPoint: string;
 }): void {
-  execFileSync("git", ["worktree", "add", "-b", branch, path], { cwd: repo });
+  execFileSync("git", ["worktree", "add", "-b", branch, path, startPoint], {
+    cwd: repo,
+  });
 }
 
 export function removeWorktree({
