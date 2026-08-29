@@ -1,4 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { z } from "zod";
 
 const [prompt] = process.argv.slice(2);
 
@@ -14,12 +15,10 @@ if (pathToClaudeCodeExecutable === undefined) {
   throw new Error("CLAUDE_BIN must point at the claude executable");
 }
 
-const schema = {
-  type: "object",
-  properties: { summary: { type: "string" } },
-  required: ["summary"],
-  additionalProperties: false,
-};
+const Output = z.object({ summary: z.string() });
+
+// The CLI rejects the $schema key zod emits.
+const { $schema, ...schema } = z.toJSONSchema(Output);
 
 for await (const message of query({
   prompt,
@@ -35,5 +34,9 @@ for await (const message of query({
     throw new Error(`claude did not succeed: ${message.subtype}`);
   }
 
-  console.log(JSON.stringify(message.structured_output, null, 2));
+  // A success result carries no structured output when the model gives up on
+  // the schema, so parsing is the only thing that catches it.
+  const output = Output.parse(message.structured_output);
+
+  console.log(output.summary);
 }
