@@ -5,6 +5,12 @@ import { requireEnv } from "./env.js";
 
 export const MODEL = "opus";
 
+export type ToolFailure = {
+  toolName: string;
+  error: string;
+  durationMs: number | null;
+};
+
 export async function runStep<Schema extends z.ZodType>({
   sessionId,
   prompt,
@@ -20,9 +26,12 @@ export async function runStep<Schema extends z.ZodType>({
   turns: number;
   durationMs: number;
   output: z.infer<Schema>;
+  toolFailures: ToolFailure[];
 }> {
   // The CLI rejects the $schema key zod emits.
   const { $schema, ...schema } = z.toJSONSchema(outputSchema);
+
+  const toolFailures: ToolFailure[] = [];
 
   for await (const message of query({
     prompt,
@@ -35,6 +44,27 @@ export async function runStep<Schema extends z.ZodType>({
       pathToClaudeCodeExecutable: requireEnv("CLAUDE_BIN"),
       outputFormat: { type: "json_schema", schema },
       extraArgs: { "session-id": sessionId },
+      hooks: {
+        PostToolUseFailure: [
+          {
+            hooks: [
+              async (input) => {
+                // The callback is typed against every hook event, so narrowing
+                // is what gets us the failure fields.
+                if (input.hook_event_name === "PostToolUseFailure") {
+                  toolFailures.push({
+                    toolName: input.tool_name,
+                    error: input.error,
+                    durationMs: input.duration_ms ?? null,
+                  });
+                }
+
+                return { continue: true };
+              },
+            ],
+          },
+        ],
+      },
     },
   })) {
     if (message.type !== "result") continue;
@@ -54,6 +84,7 @@ export async function runStep<Schema extends z.ZodType>({
       turns: message.num_turns,
       durationMs: message.duration_ms,
       output: outputSchema.parse(message.structured_output),
+      toolFailures,
     };
   }
 

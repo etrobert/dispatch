@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { MODEL, runStep } from "./claude.js";
-import { failStep, finishStep, settleTask, startStep, type Db } from "./db.js";
+import {
+  failStep,
+  finishStep,
+  recordToolFailures,
+  settleTask,
+  startStep,
+  type Db,
+} from "./db.js";
 import { ensureRepo } from "./repos.js";
 import { createWorktree, removeWorktree } from "./worktree.js";
 
@@ -32,7 +39,7 @@ export async function runTask(
   });
 
   try {
-    const { costUsd, turns, durationMs, output } = await runStep({
+    const { costUsd, turns, durationMs, output, toolFailures } = await runStep({
       sessionId,
       prompt: task.description,
       cwd,
@@ -40,6 +47,7 @@ export async function runTask(
     });
 
     await finishStep(db, { stepId, output, costUsd, turns, durationMs });
+    await recordToolFailures(db, stepId, toolFailures);
     await settleTask(db, task.taskId, "done");
 
     console.log(`step ${stepId} · $${costUsd.toFixed(4)} · ${turns} turns`);
