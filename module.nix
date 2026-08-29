@@ -92,8 +92,13 @@ in
       ];
       requires = [ "postgresql.service" ];
 
-      # worktree.ts shells out to git; a unit has no ambient PATH.
-      path = [ cfg.gitPackage ];
+      # A unit has no ambient PATH: git for worktree.ts, the rest for the agent's
+      # own tools, which have nothing to run without them.
+      path = [
+        cfg.gitPackage
+        pkgs.bashInteractive
+        pkgs.nix
+      ];
 
       environment = {
         # A unit does not inherit environment.variables.
