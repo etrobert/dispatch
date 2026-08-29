@@ -5,7 +5,15 @@ import {
   real,
   text,
   timestamp,
+
 } from "drizzle-orm/pg-core";
+
+export const tasks = pgTable("tasks", {
+  taskId: text("task_id").primaryKey(),
+  description: text("description").notNull(),
+  state: text("state").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
 
 // Nullable columns are the ones unknown until the step finishes. session_id is
 // deliberately not unique: a resumed session spans several steps.

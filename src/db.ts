@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { steps } from "./schema.js";
+import { steps, tasks } from "./schema.js";
 
 export type Db = ReturnType<typeof drizzle>;
 
@@ -12,6 +13,21 @@ export function openDb(): Db {
   }
 
   return drizzle(url);
+}
+
+export async function createTask(
+  db: Db,
+  description: string,
+): Promise<string> {
+  const taskId = randomUUID();
+
+  await db.insert(tasks).values({ taskId, description, state: "queued" });
+
+  return taskId;
+}
+
+export async function queuedTasks(db: Db) {
+  return db.select().from(tasks).where(eq(tasks.state, "queued"));
 }
 
 export async function startStep(
