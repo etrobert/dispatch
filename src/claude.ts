@@ -2,14 +2,19 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-// Unset, the SDK runs its own bundled CLI, which misses the local config.
-const pathToClaudeCodeExecutable = process.env["CLAUDE_BIN"];
-
-if (pathToClaudeCodeExecutable === undefined) {
-  throw new Error("CLAUDE_BIN must point at the claude executable");
-}
-
 export const MODEL = "opus";
+
+// Unset, the SDK runs its own bundled CLI, which misses the local config.
+// Read here rather than at import, so commands that run no agent don't need it.
+function claudeExecutable(): string {
+  const path = process.env["CLAUDE_BIN"];
+
+  if (path === undefined) {
+    throw new Error("CLAUDE_BIN must point at the claude executable");
+  }
+
+  return path;
+}
 
 export async function runStep<Schema extends z.ZodType>({
   sessionId,
@@ -37,7 +42,7 @@ export async function runStep<Schema extends z.ZodType>({
       model: MODEL,
       permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,
-      pathToClaudeCodeExecutable,
+      pathToClaudeCodeExecutable: claudeExecutable(),
       outputFormat: { type: "json_schema", schema },
       extraArgs: { "session-id": sessionId },
     },
