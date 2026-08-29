@@ -7,9 +7,13 @@ if (prompt === undefined) {
   process.exit(1);
 }
 
-const child = spawn("claude", ["--print", prompt, "--output-format", "json"], {
-  stdio: ["ignore", "pipe", "inherit"],
-});
+const child = spawn(
+  "claude",
+  ["--print", prompt, "--model", "haiku", "--output-format", "json"],
+  {
+    stdio: ["ignore", "pipe", "inherit"],
+  },
+);
 
 let stdout = "";
 child.stdout.setEncoding("utf8");
