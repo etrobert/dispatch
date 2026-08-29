@@ -17,7 +17,12 @@ export async function runAgent<Schema extends z.ZodType>({
   prompt: string;
   cwd: string;
   outputSchema: Schema;
-}): Promise<{ sessionId: string; output: z.infer<Schema> }> {
+}): Promise<{
+  sessionId: string;
+  costUsd: number;
+  turns: number;
+  output: z.infer<Schema>;
+}> {
   // Assigning the id up front makes it a key the caller owns before the run.
   const sessionId = randomUUID();
 
@@ -48,7 +53,12 @@ export async function runAgent<Schema extends z.ZodType>({
 
     // A success result carries no structured output when the model gives up on
     // the schema, so parsing is the only thing that catches it.
-    return { sessionId, output: outputSchema.parse(message.structured_output) };
+    return {
+      sessionId,
+      costUsd: message.total_cost_usd,
+      turns: message.num_turns,
+      output: outputSchema.parse(message.structured_output),
+    };
   }
 
   throw new Error("claude produced no result message");

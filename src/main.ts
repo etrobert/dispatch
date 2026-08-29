@@ -8,11 +8,11 @@ if (prompt === undefined) {
   process.exit(1);
 }
 
-const { sessionId, output } = await runAgent({
+const { sessionId, costUsd, turns, output } = await runAgent({
   prompt,
   cwd,
   outputSchema: z.object({ summary: z.string() }),
 });
 
-console.log(`session ${sessionId}`);
+console.log(`session ${sessionId} · $${costUsd.toFixed(4)} · ${turns} turns`);
 console.log(output.summary);
