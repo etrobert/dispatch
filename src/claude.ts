@@ -9,7 +9,7 @@ if (pathToClaudeCodeExecutable === undefined) {
   throw new Error("CLAUDE_BIN must point at the claude executable");
 }
 
-export const MODEL = "haiku";
+export const MODEL = "opus";
 
 export async function runStep<Schema extends z.ZodType>({
   sessionId,
