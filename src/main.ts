@@ -8,7 +8,7 @@ if (prompt === undefined) {
 }
 
 const child = spawn("claude", ["--print", prompt, "--output-format", "json"], {
-  stdio: ["inherit", "pipe", "inherit"],
+  stdio: ["ignore", "pipe", "inherit"],
 });
 
 let stdout = "";
