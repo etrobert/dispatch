@@ -124,11 +124,7 @@ export async function recordToolFailures(
   // An insert with no rows is a syntax error.
   if (failures.length === 0) return;
 
-  await db.insert(toolFailures).values(
-    failures.map((failure) => ({
-      toolFailureId: randomUUID(),
-      stepId,
-      ...failure,
-    })),
-  );
+  await db
+    .insert(toolFailures)
+    .values(failures.map((failure) => ({ stepId, ...failure })));
 }

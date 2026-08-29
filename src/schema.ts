@@ -5,6 +5,7 @@ import {
   real,
   text,
   timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 export const tasks = pgTable("tasks", {
@@ -39,7 +40,7 @@ export const steps = pgTable("steps", {
 // can be inspected after it finishes. Only duration_ms is nullable: the hook
 // omits it when the call failed before the tool itself ran.
 export const toolFailures = pgTable("tool_failures", {
-  toolFailureId: text("tool_failure_id").primaryKey(),
+  toolFailureId: uuid("tool_failure_id").primaryKey().defaultRandom(),
   stepId: text("step_id").references(() => steps.stepId),
   toolName: text("tool_name").notNull(),
   error: text("error").notNull(),
