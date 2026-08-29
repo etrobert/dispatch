@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -49,5 +49,6 @@ export async function runTask(
     throw error;
   } finally {
     removeWorktree({ repo, path: cwd, branch });
+    await rm(parent, { recursive: true });
   }
 }
