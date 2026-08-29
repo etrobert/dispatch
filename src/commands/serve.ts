@@ -1,10 +1,14 @@
 import { setTimeout } from "node:timers/promises";
-import { claimNextTask, type Db } from "../db.js";
+import { claimNextTask, type Db, migrateDb } from "../db.js";
 import { runTask } from "../task.js";
 
 const POLL_MS = 5000;
 
 export async function serve(db: Db): Promise<void> {
+  // A freshly deployed machine has an empty database, and nothing else applies
+  // the schema to it.
+  await migrateDb(db);
+
   const stopping = new AbortController();
   process.once("SIGINT", () => stopping.abort());
   process.once("SIGTERM", () => stopping.abort());

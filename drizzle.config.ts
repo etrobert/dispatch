@@ -9,5 +9,8 @@ if (url === undefined) {
 export default defineConfig({
   dialect: "postgresql",
   schema: "./src/schema.ts",
+  // Committed SQL. generate writes it here; the daemon applies the folder at
+  // startup.
+  out: "./migrations",
   dbCredentials: { url },
 });

@@ -31,6 +31,9 @@
 
           installPhase = ''
             install -D dist/dispatch.mjs $out/libexec/dispatch.mjs
+            # The bundle reads these at startup, so they have to outlive the
+            # source tree. module.nix points DISPATCH_MIGRATIONS at them.
+            cp -r migrations $out/libexec/migrations
             makeWrapper ${pkgs.nodejs}/bin/node $out/bin/dispatch \
               --add-flags $out/libexec/dispatch.mjs
           '';
