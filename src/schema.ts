@@ -9,6 +9,7 @@ import {
 
 export const tasks = pgTable("tasks", {
   taskId: text("task_id").primaryKey(),
+  repo: text("repo").notNull(),
   description: text("description").notNull(),
   state: text("state").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

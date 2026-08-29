@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { steps, tasks } from "./schema.js";
 
@@ -15,10 +15,14 @@ export function openDb(): Db {
   return drizzle(url);
 }
 
-export async function createTask(db: Db, description: string): Promise<string> {
+export async function createTask(
+  db: Db,
+  repo: string,
+  description: string,
+): Promise<string> {
   const taskId = randomUUID();
 
-  await db.insert(tasks).values({ taskId, description, state: "queued" });
+  await db.insert(tasks).values({ taskId, repo, description, state: "queued" });
 
   return taskId;
 }
@@ -34,6 +38,26 @@ export async function claimTask(db: Db, taskId: string) {
     .update(tasks)
     .set({ state: "running" })
     .where(and(eq(tasks.taskId, taskId), eq(tasks.state, "queued")))
+    .returning();
+
+  return task;
+}
+
+// SKIP LOCKED is what lets several dispatchers poll the same queue without
+// blocking on each other or handing out the same task twice.
+export async function claimNextTask(db: Db) {
+  const next = db
+    .select({ taskId: tasks.taskId })
+    .from(tasks)
+    .where(eq(tasks.state, "queued"))
+    .orderBy(tasks.createdAt)
+    .limit(1)
+    .for("update", { skipLocked: true });
+
+  const [task] = await db
+    .update(tasks)
+    .set({ state: "running" })
+    .where(inArray(tasks.taskId, next))
     .returning();
 
   return task;
