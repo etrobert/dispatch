@@ -16,7 +16,11 @@ export function openDb(): Db {
 // the bundle rather than resolvable from it, so its path comes in from the
 // environment.
 export async function migrateDb(db: Db): Promise<void> {
+  console.log("migrating database");
   await migrate(db, { migrationsFolder: requireEnv("DISPATCH_MIGRATIONS") });
+  // drizzle's migrate() reports nothing about which migrations it applied, so
+  // reaching this line is all there is to say.
+  console.log("database schema up to date");
 }
 
 export async function createTask(
