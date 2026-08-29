@@ -7,6 +7,25 @@ if (prompt === undefined) {
   process.exit(1);
 }
 
-const child = spawn("claude", ["--print", prompt], { stdio: "inherit" });
+const child = spawn("claude", ["--print", prompt, "--output-format", "json"], {
+  stdio: ["inherit", "pipe", "inherit"],
+});
 
-child.on("close", (code) => process.exit(code ?? 1));
+let stdout = "";
+child.stdout.setEncoding("utf8");
+child.stdout.on("data", (chunk: string) => {
+  stdout += chunk;
+});
+
+child.on("close", (code) => {
+  if (code !== 0) process.exit(code ?? 1);
+
+  // --output-format json emits an array of events; the outcome is the last one.
+  // TODO: parse securely somehow
+  const events = JSON.parse(stdout) as { result: string }[];
+  const final = events.at(-1);
+  if (final === undefined)
+    throw new Error(`no result in claude output: ${stdout}`);
+
+  console.log(final.result);
+});
