@@ -23,7 +23,7 @@ const branch = `dispatch/${parent.split("-").at(-1)}`;
 const db = openDb();
 
 createWorktree({ repo, path: cwd, branch });
-startStep(db, { stepId, sessionId, prompt, repo, branch, model: MODEL });
+await startStep(db, { stepId, sessionId, prompt, repo, branch, model: MODEL });
 
 try {
   const { costUsd, turns, durationMs, output } = await runStep({
@@ -33,13 +33,13 @@ try {
     outputSchema: z.object({ summary: z.string() }),
   });
 
-  finishStep(db, { stepId, output, costUsd, turns, durationMs });
+  await finishStep(db, { stepId, output, costUsd, turns, durationMs });
 
   console.log(`step ${stepId} · $${costUsd.toFixed(4)} · ${turns} turns`);
   console.log(`session ${sessionId}`);
   console.log(output.summary);
 } catch (error) {
-  failStep(db, { stepId, error: String(error) });
+  await failStep(db, { stepId, error: String(error) });
   throw error;
 } finally {
   removeWorktree({ repo, path: cwd, branch });

@@ -27,10 +27,7 @@
           npmDeps = pkgs.importNpmLock { npmRoot = ./.; };
           npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
-          nativeBuildInputs = [
-            pkgs.esbuild
-            pkgs.makeWrapper
-          ];
+          nativeBuildInputs = [ pkgs.makeWrapper ];
 
           installPhase = ''
             install -D dist/dispatch.mjs $out/libexec/dispatch.mjs
@@ -42,10 +39,11 @@
 
       devShells = forEachSystem (pkgs: {
         default = pkgs.mkShell {
-          # esbuild is not an npm dependency, so `npm run build` needs it here.
           packages = with pkgs; [
             nodejs
-            esbuild
+            # postgresql_17 matches the system instance dispatch deploys against.
+            postgresql_17
+            ephemeralpg
           ];
 
           shellHook = /* bash */ ''
