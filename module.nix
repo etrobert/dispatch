@@ -46,6 +46,14 @@ in
         expires after a year.
       '';
     };
+
+    githubTokenFile = lib.mkOption {
+      type = lib.types.path;
+      description = ''
+        File holding `GH_TOKEN=...`. Agents push branches and open pull requests
+        with it, so the daemon never needs its own ssh key.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -97,6 +105,7 @@ in
       path = [
         cfg.gitPackage
         pkgs.bashInteractive
+        pkgs.gh
         pkgs.nix
       ];
 
@@ -106,13 +115,23 @@ in
         DISPATCH_REPOS = reposDir;
         CLAUDE_BIN = cfg.claudeBin;
         CLAUDE_CONFIG_DIR = "/var/lib/dispatch/claude";
+
+        # git has no credentials of its own here; gh supplies them from GH_TOKEN.
+        # Injected rather than written to a config file because the git wrapper
+        # already owns GIT_CONFIG_GLOBAL.
+        GIT_CONFIG_COUNT = "1";
+        GIT_CONFIG_KEY_0 = "credential.https://github.com.helper";
+        GIT_CONFIG_VALUE_0 = "!gh auth git-credential";
       };
 
       serviceConfig = {
         ExecStart = "${self.packages.${system}.default}/bin/dispatch serve";
         User = "dispatch";
         Group = "dispatch";
-        EnvironmentFile = cfg.tokenFile;
+        EnvironmentFile = [
+          cfg.tokenFile
+          cfg.githubTokenFile
+        ];
         StateDirectory = "dispatch";
         Restart = "on-failure";
       };
