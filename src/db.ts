@@ -75,40 +75,6 @@ export async function settleTask(
   await db.update(tasks).set({ state }).where(eq(tasks.taskId, taskId));
 }
 
-// Left on a task's step by the startup sweep, so an operator reading the row
-// afterwards can tell a swept step from one that failed on its own.
-const STRANDED_ERROR =
-  "stranded: the daemon exited before this step finished, settled by the startup sweep";
-
-// A daemon killed mid-step (crash, SIGKILL, reboot) leaves its task `running`
-// with no process left to settle it, and claimNextTask only claims `queued`, so
-// nothing would ever look at it again. Settling as `failed` rather than
-// requeueing is deliberate: the step may already have pushed a branch or opened
-// a pull request, and a second attempt would duplicate that.
-//
-// This assumes the starting daemon is the only one against this database; a
-// second daemon would sweep the first one's live tasks out from under it.
-export async function sweepStrandedTasks(db: Db): Promise<string[]> {
-  const stranded = await db
-    .update(tasks)
-    .set({ state: "failed" })
-    .where(eq(tasks.state, "running"))
-    .returning({ taskId: tasks.taskId });
-
-  const taskIds = stranded.map((task) => task.taskId);
-
-  if (taskIds.length === 0) return taskIds;
-
-  // A task stranded before its step row was inserted updates nothing here; its
-  // own `failed` state is then the only record of the sweep.
-  await db
-    .update(steps)
-    .set({ status: "failed", error: STRANDED_ERROR, finishedAt: new Date() })
-    .where(and(inArray(steps.taskId, taskIds), eq(steps.status, "running")));
-
-  return taskIds;
-}
-
 export async function startStep(
   db: Db,
   step: {

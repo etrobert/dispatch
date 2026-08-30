@@ -1,10 +1,5 @@
 import { setTimeout } from "node:timers/promises";
-import {
-  claimNextTask,
-  type Db,
-  migrateDb,
-  sweepStrandedTasks,
-} from "../db.js";
+import { claimNextTask, type Db, migrateDb } from "../db.js";
 import { runTask } from "../task.js";
 
 const POLL_MS = 5000;
@@ -13,12 +8,6 @@ export async function serve(db: Db): Promise<void> {
   // A freshly deployed machine has an empty database, and nothing else applies
   // the schema to it.
   await migrateDb(db);
-
-  // Tasks a previous process left `running` have nothing to settle them, so
-  // this daemon does it before taking anything new on.
-  for (const taskId of await sweepStrandedTasks(db)) {
-    console.log(`task ${taskId} stranded by a previous process, failed`);
-  }
 
   const stopping = new AbortController();
   process.once("SIGINT", () => stopping.abort());
