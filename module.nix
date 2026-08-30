@@ -125,8 +125,6 @@ in
         DISPATCH_DATABASE_URL = databaseUrl;
         DISPATCH_REPOS = reposDir;
         DISPATCH_MIGRATIONS = "${self.packages.${system}.default}/libexec/migrations";
-        # A null value is dropped from the unit rather than set empty, which is
-        # what leaves the default to the one in the code.
         DISPATCH_MODEL = cfg.model;
         CLAUDE_BIN = cfg.claudeBin;
         CLAUDE_CONFIG_DIR = "/var/lib/dispatch/claude";
