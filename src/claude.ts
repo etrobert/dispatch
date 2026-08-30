@@ -4,12 +4,12 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { envOr, requireEnv } from "./env.js";
+import { requireEnv } from "./env.js";
 
 // Read at the point of use like every other variable here. Unset, dispatch
 // runs the model it always has.
 export function model(): string {
-  return envOr("DISPATCH_MODEL", "opus");
+  return process.env.DISPATCH_MODEL ?? "opus";
 }
 
 export async function runStep<Schema extends z.ZodType>({
