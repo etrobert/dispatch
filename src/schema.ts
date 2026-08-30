@@ -23,7 +23,9 @@ export const tasks = pgTable("tasks", {
 // session_id is deliberately not unique: a resumed session spans several steps.
 export const steps = pgTable("steps", {
   stepId: text("step_id").primaryKey(),
-  taskId: text("task_id").references(() => tasks.taskId),
+  taskId: text("task_id")
+    .notNull()
+    .references(() => tasks.taskId),
   // Null on a task's first step. Steps form a tree: a child is a review
   // follow-up, a retry, or one of several versions of the same idea.
   parentStepId: text("parent_step_id").references(
@@ -58,7 +60,9 @@ export const steps = pgTable("steps", {
 // omits it when the call failed before the tool itself ran.
 export const toolFailures = pgTable("tool_failures", {
   toolFailureId: uuid("tool_failure_id").primaryKey().defaultRandom(),
-  stepId: text("step_id").references(() => steps.stepId),
+  stepId: text("step_id")
+    .notNull()
+    .references(() => steps.stepId),
   toolName: text("tool_name").notNull(),
   error: text("error").notNull(),
   durationMs: integer("duration_ms"),

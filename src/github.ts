@@ -17,16 +17,18 @@ export function prState(prUrl: string): "OPEN" | "MERGED" | "CLOSED" {
 
 // The fields of a comment left inline on the diff, named as GitHub names them.
 // Not a submitted review — GitHub forbids reviewing your own pull request, and
-// dispatch opens them as the account that reviews them. Optionality follows
-// their OpenAPI spec: a review comment always carries a body, but `line` is
-// absent on one against a whole file rather than one of its lines.
+// dispatch opens them as the account that reviews them.
+//
+// `line` is nullish two ways, and only one of them is in GitHub's OpenAPI spec:
+// the spec has it absent on a comment against a whole file, and the live API
+// also returns null once a later push outdates the comment's hunk.
 const commentsSchema = z.array(
   z.object({
     id: z.number(),
     created_at: z.string(),
     body: z.string(),
     path: z.string(),
-    line: z.number().optional(),
+    line: z.number().nullish(),
   }),
 );
 

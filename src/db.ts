@@ -155,18 +155,36 @@ export async function failStep(
     .where(eq(steps.stepId, step.stepId));
 }
 
-// Steps waiting on a human, paired with the pull request they wait on.
-export async function reviewSteps(
-  db: Db,
-): Promise<{ stepId: string; prUrl: string }[]> {
+// Steps waiting on a human, with what a follow-up needs to work on their pull
+// request.
+export async function reviewSteps(db: Db) {
   const rows = await db
-    .select({ stepId: steps.stepId, prUrl: steps.prUrl })
+    .select({
+      stepId: steps.stepId,
+      taskId: steps.taskId,
+      prUrl: steps.prUrl,
+      repo: steps.repo,
+      branch: steps.branch,
+    })
     .from(steps)
     .where(eq(steps.status, "review"));
 
-  return rows.flatMap(({ stepId, prUrl }) =>
-    prUrl === null ? [] : [{ stepId, prUrl }],
+  return rows.flatMap((row) =>
+    row.prUrl === null ? [] : [{ ...row, prUrl: row.prUrl }],
   );
+}
+
+// The comments this step has already answered, so none is answered twice.
+export async function answeredComments(
+  db: Db,
+  stepId: string,
+): Promise<Set<string>> {
+  const rows = await db
+    .select({ commentId: steps.commentId })
+    .from(steps)
+    .where(eq(steps.parentStepId, stepId));
+
+  return new Set(rows.flatMap((row) => row.commentId ?? []));
 }
 
 // finished_at stays as the agent left it: the human settling the pull request
