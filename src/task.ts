@@ -1,18 +1,10 @@
-import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { MODEL, runStep } from "./claude.js";
-import {
-  failStep,
-  finishStep,
-  recordToolFailure,
-  settleTask,
-  startStep,
-  type Db,
-} from "./db.js";
+import { settleTask, type Db } from "./db.js";
 import { ensureRepo } from "./repos.js";
+import { takeStep } from "./step.js";
 import { createWorktree, removeWorktree } from "./worktree.js";
 
 // The task arrives already claimed, so every path out of here has to settle it.
@@ -22,12 +14,7 @@ export async function runTask(
   db: Db,
   task: { taskId: string; repo: string; description: string },
 ): Promise<void> {
-  const stepId = randomUUID();
-  const sessionId = randomUUID();
-
-  // Set as each one succeeds, so the catch knows whether there is a step row to
-  // fail and the finally knows what there is to clean up.
-  let stepStarted = false;
+  // Set as each one succeeds, so the finally knows what there is to clean up.
   let parent: string | undefined;
   let worktree: { repo: string; path: string; branch: string } | undefined;
 
@@ -41,52 +28,25 @@ export async function runTask(
     createWorktree({ repo, path: cwd, branch, startPoint: "origin/HEAD" });
     worktree = { repo, path: cwd, branch };
 
-    await startStep(db, {
-      stepId,
+    const { output } = await takeStep(db, {
       taskId: task.taskId,
-      sessionId,
-      prompt: task.description,
-      repo: task.repo,
-      branch,
-      model: MODEL,
-    });
-    stepStarted = true;
-
-    const { costUsd, turns, durationMs, output } = await runStep({
-      sessionId,
       prompt: task.description,
       cwd,
+      repo: task.repo,
+      branch,
       // Absent unless the prompt asked for a pull request: runTask does not
       // know what role the step is playing.
       outputSchema: z.object({
         summary: z.string(),
         prUrl: z.url().optional(),
       }),
-      onToolFailure: (failure) =>
-        recordToolFailure(db, stepId, {
-          toolName: failure.tool_name,
-          error: failure.error,
-          durationMs: failure.duration_ms ?? null,
-        }),
     });
 
-    await finishStep(db, {
-      stepId,
-      output,
-      prUrl: output.prUrl ?? null,
-      costUsd,
-      turns,
-      durationMs,
-    });
     await settleTask(db, task.taskId, "review");
 
-    console.log(`step ${stepId} · $${costUsd.toFixed(4)} · ${turns} turns`);
     if (output.prUrl !== undefined) console.log(output.prUrl);
     console.log(output.summary);
   } catch (error) {
-    // Setting up the worktree fails before there is a step row to fail, and the
-    // task still has to settle.
-    if (stepStarted) await failStep(db, { stepId, error: String(error) });
     await settleTask(db, task.taskId, "failed");
     throw error;
   } finally {

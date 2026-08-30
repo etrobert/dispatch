@@ -86,6 +86,7 @@ export async function startStep(
   step: {
     stepId: string;
     taskId: string;
+    parentStepId?: string;
     sessionId: string;
     prompt: string;
     repo: string;
