@@ -36,6 +36,13 @@
       "when": 1788078909751,
       "tag": "0004_brave_princess_powerful",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788082832536,
+      "tag": "0005_lonely_jetstream",
+      "breakpoints": true
     }
   ]
 }

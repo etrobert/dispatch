@@ -29,6 +29,10 @@ export const steps = pgTable("steps", {
   parentStepId: text("parent_step_id").references(
     (): AnyPgColumn => steps.stepId,
   ),
+  // The pull request comment this step answers. A comment that already has a
+  // step against it is never followed up a second time. Null on every step that
+  // is not a review follow-up.
+  commentId: text("comment_id"),
   // running | review | done | closed | failed. `review` is a step that opened a
   // pull request and is waiting on a human; it settles when that request does.
   sessionId: text("session_id").notNull(),

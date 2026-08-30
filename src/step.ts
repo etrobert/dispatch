@@ -22,6 +22,7 @@ export async function takeStep<Schema extends z.ZodType>(
   step: {
     taskId: string;
     parentStepId?: string;
+    commentId?: string;
     prompt: string;
     cwd: string;
     repo: string;
@@ -36,6 +37,7 @@ export async function takeStep<Schema extends z.ZodType>(
     stepId,
     taskId: step.taskId,
     parentStepId: step.parentStepId,
+    commentId: step.commentId,
     sessionId,
     prompt: step.prompt,
     repo: step.repo,

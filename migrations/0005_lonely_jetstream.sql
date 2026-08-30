@@ -1,0 +1,1 @@
+ALTER TABLE "steps" ADD COLUMN "comment_id" text;
