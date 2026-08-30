@@ -7,15 +7,21 @@
 - **session** — a Claude Code conversation with one role. Resumable, has memory,
   identified by the UUID dispatch assigns before the process starts.
 - **step** — one agent invocation. Has a status, cost, duration, and outcome.
-- **round** — an integer on a step: which pass of the loop it belongs to. The
-  planner is round 0.
 - **role** — `planner` | `implementer` | `reviewer` | `...`. A property of the
   session.
 
-Tables are `tasks`, `sessions`, `steps`. One task has several sessions; one
-session has one step per round when resumed, or exactly one when each step
-spawns a fresh session — that choice is still open and the schema stays neutral
-on it.
+Steps form a tree. `parent_step_id` links a step to the one it branched from: a
+review follow-up, a retry, or one of several attempts at the same idea. Depth is
+what "round" would have meant; there is no round column.
 
-Don't use **run**: it ambiguously meant a task's whole execution, a single step,
-and a session.
+Tables are `tasks`, `steps`, `tool_failures`. There is no sessions table —
+`session_id` is a column on `steps`, deliberately not unique, because a resumed
+session spans several steps.
+
+A task has no state column. Its state is computed from its steps: queued until
+claimed, running while any step is `running` or `review`, done once none are.
+`tasks.started_at` is only the claim marker.
+
+Step status is `running | review | done | closed | failed`. `review` means the
+step opened a pull request and waits on a human; the serve loop settles it to
+`done` when that request merges, `closed` when it is closed.

@@ -29,7 +29,6 @@ export async function runStep<Schema extends z.ZodType>({
   // The CLI rejects the $schema key zod emits.
   const { $schema, ...schema } = z.toJSONSchema(outputSchema);
 
-
   for await (const message of query({
     prompt,
     options: {

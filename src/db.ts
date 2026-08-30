@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { requireEnv } from "./env.js";
@@ -30,13 +30,43 @@ export async function createTask(
 ): Promise<string> {
   const taskId = randomUUID();
 
-  await db.insert(tasks).values({ taskId, repo, description, state: "queued" });
+  await db.insert(tasks).values({ taskId, repo, description });
 
   return taskId;
 }
 
-export async function queuedTasks(db: Db) {
-  return db.select().from(tasks).where(eq(tasks.state, "queued"));
+// Nothing stores a task's state, so it is read back off its steps: queued until
+// a dispatcher claims it, running while any step still is, done once nothing is
+// in flight.
+export async function listTasks(db: Db) {
+  const rows = await db
+    .select({
+      taskId: tasks.taskId,
+      description: tasks.description,
+      startedAt: tasks.startedAt,
+      inFlight: count(steps.stepId),
+    })
+    .from(tasks)
+    .leftJoin(
+      steps,
+      and(
+        eq(steps.taskId, tasks.taskId),
+        inArray(steps.status, ["running", "review"]),
+      ),
+    )
+    .groupBy(tasks.taskId, tasks.description, tasks.startedAt, tasks.createdAt)
+    .orderBy(tasks.createdAt);
+
+  return rows.map(({ taskId, description, startedAt, inFlight }) => ({
+    taskId,
+    description,
+    state:
+      startedAt === null
+        ? "queued"
+        : inFlight > 0
+          ? "running"
+          : ("done" as const),
+  }));
 }
 
 // Conditional update rather than read-then-write, so two dispatchers racing for
@@ -44,8 +74,8 @@ export async function queuedTasks(db: Db) {
 export async function claimTask(db: Db, taskId: string) {
   const [task] = await db
     .update(tasks)
-    .set({ state: "running" })
-    .where(and(eq(tasks.taskId, taskId), eq(tasks.state, "queued")))
+    .set({ startedAt: new Date() })
+    .where(and(eq(tasks.taskId, taskId), isNull(tasks.startedAt)))
     .returning();
 
   return task;
@@ -57,26 +87,18 @@ export async function claimNextTask(db: Db) {
   const next = db
     .select({ taskId: tasks.taskId })
     .from(tasks)
-    .where(eq(tasks.state, "queued"))
+    .where(isNull(tasks.startedAt))
     .orderBy(tasks.createdAt)
     .limit(1)
     .for("update", { skipLocked: true });
 
   const [task] = await db
     .update(tasks)
-    .set({ state: "running" })
+    .set({ startedAt: new Date() })
     .where(inArray(tasks.taskId, next))
     .returning();
 
   return task;
-}
-
-export async function settleTask(
-  db: Db,
-  taskId: string,
-  state: "done" | "failed",
-): Promise<void> {
-  await db.update(tasks).set({ state }).where(eq(tasks.taskId, taskId));
 }
 
 export async function startStep(
@@ -84,6 +106,8 @@ export async function startStep(
   step: {
     stepId: string;
     taskId: string;
+    parentStepId?: string;
+    commentId?: string;
     sessionId: string;
     prompt: string;
     repo: string;
@@ -99,6 +123,7 @@ export async function finishStep(
   step: {
     stepId: string;
     output: unknown;
+    prUrl: string | null;
     costUsd: number;
     turns: number;
     durationMs: number;
@@ -107,8 +132,11 @@ export async function finishStep(
   await db
     .update(steps)
     .set({
-      status: "done",
+      // A step that opened a pull request is not finished when the agent stops:
+      // it waits on the human who has to settle that request.
+      status: step.prUrl === null ? "done" : "review",
       output: step.output,
+      prUrl: step.prUrl,
       costUsd: step.costUsd,
       turns: step.turns,
       durationMs: step.durationMs,
@@ -125,6 +153,48 @@ export async function failStep(
     .update(steps)
     .set({ status: "failed", error: step.error, finishedAt: new Date() })
     .where(eq(steps.stepId, step.stepId));
+}
+
+// Steps waiting on a human, with what a follow-up needs to work on their pull
+// request.
+export async function reviewSteps(db: Db) {
+  const rows = await db
+    .select({
+      stepId: steps.stepId,
+      taskId: steps.taskId,
+      prUrl: steps.prUrl,
+      repo: steps.repo,
+      branch: steps.branch,
+    })
+    .from(steps)
+    .where(eq(steps.status, "review"));
+
+  return rows.flatMap((row) =>
+    row.prUrl === null ? [] : [{ ...row, prUrl: row.prUrl }],
+  );
+}
+
+// The comments this step has already answered, so none is answered twice.
+export async function answeredComments(
+  db: Db,
+  stepId: string,
+): Promise<Set<string>> {
+  const rows = await db
+    .select({ commentId: steps.commentId })
+    .from(steps)
+    .where(eq(steps.parentStepId, stepId));
+
+  return new Set(rows.flatMap((row) => row.commentId ?? []));
+}
+
+// finished_at stays as the agent left it: the human settling the pull request
+// days later is not when the step ran.
+export async function settleStep(
+  db: Db,
+  stepId: string,
+  status: "done" | "closed",
+): Promise<void> {
+  await db.update(steps).set({ status }).where(eq(steps.stepId, stepId));
 }
 
 // Written after the step finishes rather than as each failure arrives, so the
