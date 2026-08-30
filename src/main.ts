@@ -27,7 +27,7 @@ switch (command) {
 
   default:
     console.error(
-      "usage: dispatch new-task <description> [repo] | tasks | run <task-id> | serve",
+      "usage: dispatch new-task <description> [repo-url] | tasks | run <task-id> | serve",
     );
     process.exit(1);
 }

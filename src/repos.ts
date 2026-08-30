@@ -24,3 +24,37 @@ export function ensureRepo(url: string): string {
 
   return path;
 }
+
+// A url every machine can reach, either `scheme://host/path` or git's scp-like
+// `user@host:path`.
+const remote = /^[a-z][a-z0-9+.-]*:\/\/|^[^/:]+@[^/:]+:/i;
+
+// The origin of the checkout the operator is standing in, which is the repo
+// they almost always mean.
+function origin(): string {
+  try {
+    return execFileSync("git", ["remote", "get-url", "origin"], {
+      encoding: "utf8",
+      // git's own complaint would land on stderr next to the error thrown here.
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    throw new Error(
+      "no repo given, and no origin remote here: pass the url to clone from",
+    );
+  }
+}
+
+// What a task records as its repo. Never a working directory: the task is
+// picked up by whichever machine claims it, long after the shell that typed it
+// is gone, and dispatch clones the repo into a store of its own anyway. A local
+// path would also leave the step with no remote to open a pull request against.
+export function repoUrl(arg: string | undefined): string {
+  const url = arg ?? origin();
+
+  if (!remote.test(url)) {
+    throw new Error(`not a remote url: ${url}`);
+  }
+
+  return url;
+}
