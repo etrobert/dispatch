@@ -1,1 +1,1 @@
-Dispath is an automated station.
+Dispatch is an automated station.
