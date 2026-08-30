@@ -14,3 +14,43 @@ export function prState(prUrl: string): "OPEN" | "MERGED" | "CLOSED" {
 
   return viewSchema.parse(JSON.parse(view)).state;
 }
+
+// The fields of a comment left inline on the diff, named as GitHub names them.
+// Not a submitted review — GitHub forbids reviewing your own pull request, and
+// dispatch opens them as the account that reviews them. Optionality follows
+// their OpenAPI spec: a review comment always carries a body, but `line` is
+// absent on one against a whole file rather than one of its lines.
+const commentsSchema = z.array(
+  z.object({
+    id: z.number(),
+    created_at: z.string(),
+    body: z.string(),
+    path: z.string(),
+    line: z.number().optional(),
+  }),
+);
+
+export type PrComment = z.infer<typeof commentsSchema>[number];
+
+// --paginate because a page holds 30 comments and the rest would otherwise be
+// dropped, never answered. gh merges the pages back into one array.
+function gh(path: string): unknown {
+  return JSON.parse(
+    execFileSync("gh", ["api", "--paginate", path], { encoding: "utf8" }),
+  );
+}
+
+export function listComments(prUrl: string): PrComment[] {
+  const match = /github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/.exec(prUrl);
+
+  if (match === null) throw new Error(`not a pull request url: ${prUrl}`);
+
+  const [, owner, repo, number] = match;
+
+  return (
+    commentsSchema
+      .parse(gh(`repos/${owner}/${repo}/pulls/${number}/comments`))
+      // Oldest first, so follow-ups are dispatched in the order they were left.
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+  );
+}
