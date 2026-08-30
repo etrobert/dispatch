@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { MODEL, runStep } from "./claude.js";
+import { runStep } from "./claude.js";
 import {
   failStep,
   finishStep,
@@ -32,6 +32,7 @@ export async function takeStep<Schema extends z.ZodType>(
 ): Promise<{ stepId: string; output: z.infer<Schema> }> {
   const stepId = randomUUID();
   const sessionId = randomUUID();
+  const stepModel = process.env.DISPATCH_MODEL ?? "opus";
 
   await startStep(db, {
     stepId,
@@ -42,7 +43,7 @@ export async function takeStep<Schema extends z.ZodType>(
     prompt: step.prompt,
     repo: step.repo,
     branch: step.branch,
-    model: MODEL,
+    model: stepModel,
   });
 
   // Everything past here has a row to fail, which is why the insert sits
@@ -52,6 +53,7 @@ export async function takeStep<Schema extends z.ZodType>(
       sessionId,
       prompt: step.prompt,
       cwd: step.cwd,
+      model: stepModel,
       outputSchema: step.outputSchema,
       onToolFailure: (failure) =>
         recordToolFailure(db, stepId, {

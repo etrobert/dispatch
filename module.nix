@@ -28,6 +28,16 @@ in
       '';
     };
 
+    model = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "sonnet";
+      description = ''
+        Model the agents run, named as `claude --model` names it. Null leaves
+        the variable unset, so the default stays in one place: the code.
+      '';
+    };
+
     gitPackage = lib.mkOption {
       type = lib.types.package;
       default = pkgs.git;
@@ -115,6 +125,7 @@ in
         DISPATCH_DATABASE_URL = databaseUrl;
         DISPATCH_REPOS = reposDir;
         DISPATCH_MIGRATIONS = "${self.packages.${system}.default}/libexec/migrations";
+        DISPATCH_MODEL = cfg.model;
         CLAUDE_BIN = cfg.claudeBin;
         CLAUDE_CONFIG_DIR = "/var/lib/dispatch/claude";
 

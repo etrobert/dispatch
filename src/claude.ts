@@ -6,18 +6,19 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireEnv } from "./env.js";
 
-export const MODEL = "opus";
-
 export async function runStep<Schema extends z.ZodType>({
   sessionId,
   prompt,
   cwd,
+  model,
   outputSchema,
   onToolFailure,
 }: {
   sessionId: string;
   prompt: string;
   cwd: string;
+  // Passed in rather than read here, so the run and the row cannot disagree.
+  model: string;
   outputSchema: Schema;
   onToolFailure: (failure: PostToolUseFailureHookInput) => Promise<void>;
 }): Promise<{
@@ -33,7 +34,7 @@ export async function runStep<Schema extends z.ZodType>({
     prompt,
     options: {
       cwd,
-      model: MODEL,
+      model,
       permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,
       // Unset, the SDK runs its own bundled CLI, missing the local config.
