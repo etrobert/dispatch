@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { model, runStep } from "./claude.js";
+import { runStep } from "./claude.js";
 import {
   failStep,
   finishStep,
@@ -32,8 +32,10 @@ export async function takeStep<Schema extends z.ZodType>(
 ): Promise<{ stepId: string; output: z.infer<Schema> }> {
   const stepId = randomUUID();
   const sessionId = randomUUID();
-  // Resolved once, so the row records exactly what the run was handed.
-  const stepModel = model();
+  // Read at the point of use like every other variable here, and resolved
+  // once, so the row records exactly what the run was handed. Unset, dispatch
+  // runs the model it always has.
+  const stepModel = process.env.DISPATCH_MODEL ?? "opus";
 
   await startStep(db, {
     stepId,

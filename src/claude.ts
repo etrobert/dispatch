@@ -6,12 +6,6 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireEnv } from "./env.js";
 
-// Read at the point of use like every other variable here. Unset, dispatch
-// runs the model it always has.
-export function model(): string {
-  return process.env.DISPATCH_MODEL ?? "opus";
-}
-
 export async function runStep<Schema extends z.ZodType>({
   sessionId,
   prompt,
