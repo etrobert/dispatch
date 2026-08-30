@@ -13,7 +13,9 @@ export const tasks = pgTable("tasks", {
   taskId: text("task_id").primaryKey(),
   repo: text("repo").notNull(),
   description: text("description").notNull(),
-  state: text("state").notNull(),
+  // A task has no state of its own: it is computed from its steps. This is only
+  // the claim marker — null means no dispatcher has taken the task yet.
+  startedAt: timestamp("started_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -27,6 +29,8 @@ export const steps = pgTable("steps", {
   parentStepId: text("parent_step_id").references(
     (): AnyPgColumn => steps.stepId,
   ),
+  // running | review | done | closed | failed. `review` is a step that opened a
+  // pull request and is waiting on a human; it settles when that request does.
   sessionId: text("session_id").notNull(),
   prompt: text("prompt").notNull(),
   repo: text("repo").notNull(),

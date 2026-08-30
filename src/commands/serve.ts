@@ -1,5 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 import { claimNextTask, type Db, migrateDb } from "../db.js";
+import { settleReviewed } from "../review.js";
 import { runTask } from "../task.js";
 
 const POLL_MS = 5000;
@@ -16,6 +17,11 @@ export async function serve(db: Db): Promise<void> {
   console.log("dispatch serving");
 
   while (!stopping.signal.aborted) {
+    // One unreachable pull request must not end the loop; the next poll retries.
+    await settleReviewed(db).catch((error: unknown) => {
+      console.error(`review sweep failed: ${String(error)}`);
+    });
+
     const task = await claimNextTask(db);
 
     if (task === undefined) {

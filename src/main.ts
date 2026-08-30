@@ -1,7 +1,7 @@
 import { newTask } from "./commands/new-task.js";
 import { run } from "./commands/run.js";
 import { serve } from "./commands/serve.js";
-import { openDb, queuedTasks } from "./db.js";
+import { listTasks, openDb } from "./db.js";
 
 const [command, ...rest] = process.argv.slice(2);
 const db = openDb();
@@ -20,7 +20,7 @@ switch (command) {
     break;
 
   case "tasks":
-    for (const task of await queuedTasks(db)) {
+    for (const task of await listTasks(db)) {
       console.log(`${task.state}\t${task.taskId}\t${task.description}`);
     }
     break;

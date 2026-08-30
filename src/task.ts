@@ -2,14 +2,13 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { settleTask, type Db } from "./db.js";
+import { type Db } from "./db.js";
 import { ensureRepo } from "./repos.js";
 import { takeStep } from "./step.js";
 import { createWorktree, removeWorktree } from "./worktree.js";
 
-// The task arrives already claimed, so every path out of here has to settle it.
-// Anything that escapes leaves the task `running` with nothing to pick it up
-// again: claimNextTask only ever claims `queued`.
+// The task arrives already claimed. Errors propagate: takeStep has already
+// recorded them on the step, and serve logs what escapes.
 export async function runTask(
   db: Db,
   task: { taskId: string; repo: string; description: string },
@@ -42,13 +41,8 @@ export async function runTask(
       }),
     });
 
-    await settleTask(db, task.taskId, "review");
-
     if (output.prUrl !== undefined) console.log(output.prUrl);
     console.log(output.summary);
-  } catch (error) {
-    await settleTask(db, task.taskId, "failed");
-    throw error;
   } finally {
     // Only undo what was actually created: git refuses to remove a worktree
     // that never got added, and that error would mask the real one.
