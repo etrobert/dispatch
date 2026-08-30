@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   integer,
   jsonb,
   pgTable,
@@ -16,11 +17,16 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Nullable columns are the ones unknown until the step finishes. session_id is
-// deliberately not unique: a resumed session spans several steps.
+// The columns after started_at are the ones unknown until the step finishes.
+// session_id is deliberately not unique: a resumed session spans several steps.
 export const steps = pgTable("steps", {
   stepId: text("step_id").primaryKey(),
   taskId: text("task_id").references(() => tasks.taskId),
+  // Null on a task's first step. Steps form a tree: a child is a review
+  // follow-up, a retry, or one of several versions of the same idea.
+  parentStepId: text("parent_step_id").references(
+    (): AnyPgColumn => steps.stepId,
+  ),
   sessionId: text("session_id").notNull(),
   prompt: text("prompt").notNull(),
   repo: text("repo").notNull(),
@@ -29,6 +35,9 @@ export const steps = pgTable("steps", {
   status: text("status").notNull(),
   startedAt: timestamp("started_at").notNull().defaultNow(),
   output: jsonb("output"),
+  // Extracted from output so the review poller can look a step up by its pull
+  // request. One step opens at most one, and only if its prompt asked for it.
+  prUrl: text("pr_url"),
   error: text("error"),
   costUsd: real("cost_usd"),
   turns: integer("turns"),

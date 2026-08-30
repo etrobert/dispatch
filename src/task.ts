@@ -56,7 +56,12 @@ export async function runTask(
       sessionId,
       prompt: task.description,
       cwd,
-      outputSchema: z.object({ summary: z.string() }),
+      // Absent unless the prompt asked for a pull request: runTask does not
+      // know what role the step is playing.
+      outputSchema: z.object({
+        summary: z.string(),
+        prUrl: z.url().optional(),
+      }),
       onToolFailure: (failure) =>
         recordToolFailure(db, stepId, {
           toolName: failure.tool_name,
@@ -65,10 +70,18 @@ export async function runTask(
         }),
     });
 
-    await finishStep(db, { stepId, output, costUsd, turns, durationMs });
-    await settleTask(db, task.taskId, "done");
+    await finishStep(db, {
+      stepId,
+      output,
+      prUrl: output.prUrl ?? null,
+      costUsd,
+      turns,
+      durationMs,
+    });
+    await settleTask(db, task.taskId, "review");
 
     console.log(`step ${stepId} · $${costUsd.toFixed(4)} · ${turns} turns`);
+    if (output.prUrl !== undefined) console.log(output.prUrl);
     console.log(output.summary);
   } catch (error) {
     // Setting up the worktree fails before there is a step row to fail, and the

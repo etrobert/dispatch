@@ -71,10 +71,12 @@ export async function claimNextTask(db: Db) {
   return task;
 }
 
+// `review` is where a successful task stops: it waits for comments on its pull
+// request rather than finishing on its own.
 export async function settleTask(
   db: Db,
   taskId: string,
-  state: "done" | "failed",
+  state: "review" | "failed",
 ): Promise<void> {
   await db.update(tasks).set({ state }).where(eq(tasks.taskId, taskId));
 }
@@ -99,6 +101,7 @@ export async function finishStep(
   step: {
     stepId: string;
     output: unknown;
+    prUrl: string | null;
     costUsd: number;
     turns: number;
     durationMs: number;
@@ -109,6 +112,7 @@ export async function finishStep(
     .set({
       status: "done",
       output: step.output,
+      prUrl: step.prUrl,
       costUsd: step.costUsd,
       turns: step.turns,
       durationMs: step.durationMs,
