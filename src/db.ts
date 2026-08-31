@@ -3,7 +3,7 @@ import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { requireEnv } from "./env.js";
-import { steps, tasks, toolFailures } from "./schema.js";
+import { runs, steps, tasks, toolFailures } from "./schema.js";
 
 export type Db = ReturnType<typeof drizzle>;
 
@@ -101,13 +101,10 @@ export async function claimNextTask(db: Db) {
   return task;
 }
 
-export async function startStep(
+export async function startRun(
   db: Db,
-  step: {
-    stepId: string;
-    taskId: string;
-    parentStepId?: string;
-    commentId?: string;
+  run: {
+    runId: string;
     sessionId: string;
     prompt: string;
     repo: string;
@@ -115,19 +112,51 @@ export async function startStep(
     model: string;
   },
 ): Promise<void> {
+  await db.insert(runs).values({ ...run, status: "running" });
+}
+
+export async function finishRun(
+  db: Db,
+  run: {
+    runId: string;
+    output: unknown;
+    costUsd: number;
+    turns: number;
+    durationMs: number;
+  },
+): Promise<void> {
+  await db
+    .update(runs)
+    .set({ ...run, status: "done", finishedAt: new Date() })
+    .where(eq(runs.runId, run.runId));
+}
+
+export async function failRun(
+  db: Db,
+  run: { runId: string; error: string },
+): Promise<void> {
+  await db
+    .update(runs)
+    .set({ status: "failed", error: run.error, finishedAt: new Date() })
+    .where(eq(runs.runId, run.runId));
+}
+
+export async function startStep(
+  db: Db,
+  step: {
+    stepId: string;
+    taskId: string;
+    parentStepId?: string;
+    commentId?: string;
+    runId: string;
+  },
+): Promise<void> {
   await db.insert(steps).values({ ...step, status: "running" });
 }
 
 export async function finishStep(
   db: Db,
-  step: {
-    stepId: string;
-    output: unknown;
-    prUrl: string | null;
-    costUsd: number;
-    turns: number;
-    durationMs: number;
-  },
+  step: { stepId: string; prUrl: string | null },
 ): Promise<void> {
   await db
     .update(steps)
@@ -135,24 +164,18 @@ export async function finishStep(
       // A step that opened a pull request is not finished when the agent stops:
       // it waits on the human who has to settle that request.
       status: step.prUrl === null ? "done" : "review",
-      output: step.output,
       prUrl: step.prUrl,
-      costUsd: step.costUsd,
-      turns: step.turns,
-      durationMs: step.durationMs,
       finishedAt: new Date(),
     })
     .where(eq(steps.stepId, step.stepId));
 }
 
-export async function failStep(
-  db: Db,
-  step: { stepId: string; error: string },
-): Promise<void> {
+// The reason is on the run that failed; the step only records that it did.
+export async function failStep(db: Db, stepId: string): Promise<void> {
   await db
     .update(steps)
-    .set({ status: "failed", error: step.error, finishedAt: new Date() })
-    .where(eq(steps.stepId, step.stepId));
+    .set({ status: "failed", finishedAt: new Date() })
+    .where(eq(steps.stepId, stepId));
 }
 
 // Steps waiting on a human, with what a follow-up needs to work on their pull
@@ -163,10 +186,11 @@ export async function reviewSteps(db: Db) {
       stepId: steps.stepId,
       taskId: steps.taskId,
       prUrl: steps.prUrl,
-      repo: steps.repo,
-      branch: steps.branch,
+      repo: runs.repo,
+      branch: runs.branch,
     })
     .from(steps)
+    .innerJoin(runs, eq(steps.runId, runs.runId))
     .where(eq(steps.status, "review"));
 
   return rows.flatMap((row) =>
@@ -197,12 +221,12 @@ export async function settleStep(
   await db.update(steps).set({ status }).where(eq(steps.stepId, stepId));
 }
 
-// Written after the step finishes rather than as each failure arrives, so the
-// hook stays off the database and the step row it points at already exists.
+// Recorded as each failure arrives rather than at the end, so a run that dies
+// does not take the list with it.
 export async function recordToolFailure(
   db: Db,
-  stepId: string,
+  runId: string,
   failure: { toolName: string; error: string; durationMs: number | null },
 ): Promise<void> {
-  await db.insert(toolFailures).values({ stepId, ...failure });
+  await db.insert(toolFailures).values({ runId, ...failure });
 }

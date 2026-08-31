@@ -1,22 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { failStep, finishStep, startStep, type Db } from "./db.js";
 import { runAgent, type Workspace } from "./runner.js";
-import {
-  failStep,
-  finishStep,
-  recordToolFailure,
-  startStep,
-  type Db,
-} from "./db.js";
 
 // Whether a step opened a pull request is the one thing read out of an output
 // otherwise opaque to this layer. Roles will declare it; until then any step
 // may report one.
 const published = z.object({ prUrl: z.url().optional() });
 
-// One agent invocation, recorded from start to finish. Knows nothing about what
-// the step is for: the caller supplies the prompt, the schema and the worktree
-// to run in, because those are what differ between roles.
+// A node in the task's graph, and the agent run behind it. Knows nothing about
+// what the step is for: the caller supplies the prompt, the schema and the
+// workspace, because those are what differ between roles.
 export async function takeStep<Schema extends z.ZodType>(
   db: Db,
   step: {
@@ -29,53 +23,37 @@ export async function takeStep<Schema extends z.ZodType>(
   },
 ): Promise<{ stepId: string; output: z.infer<Schema> }> {
   const stepId = randomUUID();
-  const sessionId = randomUUID();
-  const stepModel = process.env.DISPATCH_MODEL ?? "opus";
+  const runId = randomUUID();
+  const model = process.env.DISPATCH_MODEL ?? "opus";
 
   await startStep(db, {
     stepId,
     taskId: step.taskId,
     parentStepId: step.parentStepId,
     commentId: step.commentId,
-    sessionId,
-    prompt: step.prompt,
-    repo: step.workspace.repo,
-    branch: step.workspace.branch,
-    model: stepModel,
+    runId,
   });
 
-  // Everything past here has a row to fail, which is why the insert sits
-  // outside the try. The worktree is built inside it, so failing to make one
-  // fails the step rather than escaping with nothing recorded.
   try {
-    const { costUsd, turns, durationMs, output } = await runAgent({
+    const { costUsd, turns, output } = await runAgent(db, {
+      runId,
       workspace: step.workspace,
-      sessionId,
       prompt: step.prompt,
-      model: stepModel,
+      model,
       outputSchema: step.outputSchema,
-      onToolFailure: (failure) =>
-        recordToolFailure(db, stepId, {
-          toolName: failure.tool_name,
-          error: failure.error,
-          durationMs: failure.duration_ms ?? null,
-        }),
     });
 
     await finishStep(db, {
       stepId,
-      output,
       prUrl: published.parse(output).prUrl ?? null,
-      costUsd,
-      turns,
-      durationMs,
     });
 
     console.log(`step ${stepId} · $${costUsd.toFixed(4)} · ${turns} turns`);
 
     return { stepId, output };
   } catch (error) {
-    await failStep(db, { stepId, error: String(error) });
+    // The reason is already on the run; the step records only that it failed.
+    await failStep(db, stepId);
     throw error;
   }
 }
