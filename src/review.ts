@@ -1,9 +1,7 @@
 import { z } from "zod";
 import { answeredComments, reviewSteps, settleStep, type Db } from "./db.js";
 import { listComments, prState, type PrComment } from "./github.js";
-import { ensureRepo } from "./repos.js";
 import { takeStep } from "./step.js";
-import { withPrBranch } from "./worktree.js";
 
 type ReviewStep = Awaited<ReturnType<typeof reviewSteps>>[number];
 
@@ -32,28 +30,20 @@ async function followUp(db: Db, step: ReviewStep): Promise<void> {
 
   if (fresh.length === 0) return;
 
-  // Fetched once rather than per comment: the follow-ups share this clone and
-  // would otherwise contend on it.
-  const repo = ensureRepo(step.repo);
-
   console.log(`step ${step.stepId} · ${fresh.length} comment(s) to answer`);
 
   await Promise.all(
     fresh.map((comment) =>
-      withPrBranch(repo, step.branch, (cwd) =>
-        takeStep(db, {
-          taskId: step.taskId,
-          parentStepId: step.stepId,
-          commentId: String(comment.id),
-          prompt: followUpPrompt(comment, step.branch),
-          cwd,
-          repo: step.repo,
-          branch: step.branch,
-          // No prUrl: a follow-up pushes to the pull request its parent opened,
-          // so it finishes rather than waiting on a review of its own.
-          outputSchema: z.object({ summary: z.string() }),
-        }),
-      ),
+      takeStep(db, {
+        taskId: step.taskId,
+        parentStepId: step.stepId,
+        commentId: String(comment.id),
+        prompt: followUpPrompt(comment, step.branch),
+        workspace: { repo: step.repo, branch: step.branch },
+        // No prUrl: a follow-up pushes to the pull request its parent opened,
+        // so it finishes rather than waiting on a review of its own.
+        outputSchema: z.object({ summary: z.string() }),
+      }),
     ),
   );
 }

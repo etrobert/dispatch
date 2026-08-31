@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { type Db } from "./db.js";
-import { ensureRepo } from "./repos.js";
 import { takeStep } from "./step.js";
-import { withNewBranch } from "./worktree.js";
 
 // The worktree and its branch are deleted when the step ends, so anything not
 // pushed is lost with them. Publishing is the step's own job.
@@ -23,24 +21,19 @@ export async function runTask(
   db: Db,
   task: { taskId: string; repo: string; description: string },
 ): Promise<void> {
-  const repo = ensureRepo(task.repo);
   const branch = `dispatch-${randomUUID().slice(0, 6)}`;
 
-  const { output } = await withNewBranch(repo, branch, (cwd) =>
-    takeStep(db, {
-      taskId: task.taskId,
-      prompt: implementerPrompt(task.description, branch),
-      cwd,
-      repo: task.repo,
-      branch,
-      // Still optional: a task that turns out to need no change has nothing to
-      // open a pull request for.
-      outputSchema: z.object({
-        summary: z.string(),
-        prUrl: z.url().optional(),
-      }),
+  const { output } = await takeStep(db, {
+    taskId: task.taskId,
+    prompt: implementerPrompt(task.description, branch),
+    workspace: { repo: task.repo, branch },
+    // Still optional: a task that turns out to need no change has nothing to
+    // open a pull request for.
+    outputSchema: z.object({
+      summary: z.string(),
+      prUrl: z.url().optional(),
     }),
-  );
+  });
 
   if (output.prUrl !== undefined) console.log(output.prUrl);
   console.log(output.summary);

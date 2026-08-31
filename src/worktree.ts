@@ -32,31 +32,40 @@ async function withWorktree<T>(
   }
 }
 
-// A task's first step: a new branch off the repository's default branch.
-export function withNewBranch<T>(
+function onRemote(repo: string, branch: string): boolean {
+  try {
+    execFileSync("git", ["show-ref", "--verify", `refs/remotes/origin/${branch}`], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// A worktree for work belonging on `branch`, whether or not that branch exists
+// yet — which is what decides how it is checked out, so the caller need not
+// know or say.
+//
+// A branch that already exists is one others are working on too: each worktree
+// takes a throwaway local branch of its own, since git refuses to check one
+// branch out twice. Its upstream is the shared branch, so `git pull --rebase`
+// catches up on what the others pushed; pushing needs an explicit refspec,
+// which the caller's prompt supplies.
+export function withBranch<T>(
   repo: string,
   branch: string,
   body: (cwd: string) => Promise<T>,
 ): Promise<T> {
-  return withWorktree({ repo, branch, startPoint: "origin/HEAD" }, body);
-}
-
-// A later step on a pull request that already exists. Several of these run at
-// once against one branch, so each takes a local branch of its own — git
-// refuses to check the same branch out in two worktrees. Its upstream is the
-// pull request's branch, so `git pull --rebase` catches up on what the others
-// pushed; pushing needs an explicit refspec, which the caller's prompt supplies.
-export function withPrBranch<T>(
-  repo: string,
-  prBranch: string,
-  body: (cwd: string) => Promise<T>,
-): Promise<T> {
-  return withWorktree(
-    {
-      repo,
-      branch: `${prBranch}-${randomUUID().slice(0, 4)}`,
-      startPoint: `origin/${prBranch}`,
-    },
-    body,
-  );
+  return onRemote(repo, branch)
+    ? withWorktree(
+        {
+          repo,
+          branch: `${branch}-${randomUUID().slice(0, 4)}`,
+          startPoint: `origin/${branch}`,
+        },
+        body,
+      )
+    : withWorktree({ repo, branch, startPoint: "origin/HEAD" }, body);
 }

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { runStep } from "./claude.js";
+import { runAgent, type Workspace } from "./runner.js";
 import {
   failStep,
   finishStep,
@@ -24,9 +24,7 @@ export async function takeStep<Schema extends z.ZodType>(
     parentStepId?: string;
     commentId?: string;
     prompt: string;
-    cwd: string;
-    repo: string;
-    branch: string;
+    workspace: Workspace;
     outputSchema: Schema;
   },
 ): Promise<{ stepId: string; output: z.infer<Schema> }> {
@@ -41,18 +39,19 @@ export async function takeStep<Schema extends z.ZodType>(
     commentId: step.commentId,
     sessionId,
     prompt: step.prompt,
-    repo: step.repo,
-    branch: step.branch,
+    repo: step.workspace.repo,
+    branch: step.workspace.branch,
     model: stepModel,
   });
 
   // Everything past here has a row to fail, which is why the insert sits
-  // outside the try.
+  // outside the try. The worktree is built inside it, so failing to make one
+  // fails the step rather than escaping with nothing recorded.
   try {
-    const { costUsd, turns, durationMs, output } = await runStep({
+    const { costUsd, turns, durationMs, output } = await runAgent({
+      workspace: step.workspace,
       sessionId,
       prompt: step.prompt,
-      cwd: step.cwd,
       model: stepModel,
       outputSchema: step.outputSchema,
       onToolFailure: (failure) =>
