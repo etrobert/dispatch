@@ -1,7 +1,8 @@
 import { setTimeout } from "node:timers/promises";
-import { claimNextTask, type Db, migrateDb } from "../db.js";
-import { pollReviews } from "../review.js";
-import { runTask } from "../task.js";
+import { type Db, migrateDb } from "../db.js";
+import { claimNextTask } from "../tasks/index.js";
+import { pollReviews } from "../tasks/index.js";
+import { runTask } from "../tasks/index.js";
 
 const POLL_MS = 5000;
 

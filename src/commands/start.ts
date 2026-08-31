@@ -1,5 +1,6 @@
-import { claimTask, type Db } from "../db.js";
-import { runTask } from "../task.js";
+import { type Db } from "../db.js";
+import { claimTask } from "../tasks/index.js";
+import { runTask } from "../tasks/index.js";
 
 export async function start(db: Db, args: string[]): Promise<void> {
   const [taskId] = args;

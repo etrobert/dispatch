@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { answeredComments, reviewSteps, settleStep, type Db } from "./db.js";
+import { type Db } from "../db.js";
+import { answeredComments, reviewSteps, settleStep } from "./db.js";
 import { listComments, prState, type PrComment } from "./github.js";
-import { runWorkspace } from "./agent/index.js";
+import { runWorkspace } from "../agent/index.js";
 import { takeStep } from "./step.js";
 
 type ReviewStep = Awaited<ReturnType<typeof reviewSteps>>[number];

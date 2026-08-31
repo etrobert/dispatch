@@ -8,7 +8,7 @@ if (url === undefined) {
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: ["./src/schema.ts", "./src/agent/schema.ts"],
+  schema: ["./src/tasks/schema.ts", "./src/agent/schema.ts"],
   // Committed SQL. generate writes it here; the daemon applies the folder at
   // startup.
   out: "./migrations",

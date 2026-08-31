@@ -1,5 +1,5 @@
-import { createTask, type Db } from "../db.js";
-import { repoUrl } from "../agent/index.js";
+import { type Db } from "../db.js";
+import { createTask, repoUrl } from "../tasks/index.js";
 
 export async function newTask(db: Db, args: string[]): Promise<void> {
   const [description, repo] = args;

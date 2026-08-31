@@ -1,7 +1,8 @@
 import { newTask } from "./commands/new-task.js";
 import { start } from "./commands/start.js";
 import { serve } from "./commands/serve.js";
-import { listTasks, openDb } from "./db.js";
+import { openDb } from "./db.js";
+import { listTasks } from "./tasks/index.js";
 
 const [command, ...rest] = process.argv.slice(2);
 const db = openDb();

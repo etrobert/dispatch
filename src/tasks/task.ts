@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { type Db } from "./db.js";
+import { type Db } from "../db.js";
 import { takeStep } from "./step.js";
 
 // The worktree and its branch are deleted when the step ends, so anything not

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { failStep, finishStep, startStep, type Db } from "./db.js";
-import { runAgent, type Workspace } from "./agent/index.js";
+import { type Db } from "../db.js";
+import { failStep, finishStep, startStep } from "./db.js";
+import { runAgent, type Workspace } from "../agent/index.js";
 
 // Whether a step opened a pull request is the one thing read out of an output
 // otherwise opaque to this layer. Roles will declare it; until then any step
