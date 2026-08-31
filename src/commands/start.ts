@@ -1,11 +1,11 @@
 import { claimTask, type Db } from "../db.js";
 import { runTask } from "../task.js";
 
-export async function run(db: Db, args: string[]): Promise<void> {
+export async function start(db: Db, args: string[]): Promise<void> {
   const [taskId] = args;
 
   if (taskId === undefined) {
-    console.error("usage: dispatch run <task-id>");
+    console.error("usage: dispatch start <task-id>");
     process.exit(1);
   }
 

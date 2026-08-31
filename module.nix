@@ -67,7 +67,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # The operator commands (new-task, tasks, run) are the same binary.
+    # The operator commands (new-task, tasks, start) are the same binary.
     environment.systemPackages = [ self.packages.${system}.default ];
     environment.variables.DISPATCH_DATABASE_URL = databaseUrl;
 

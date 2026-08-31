@@ -1,5 +1,5 @@
 import { newTask } from "./commands/new-task.js";
-import { run } from "./commands/run.js";
+import { start } from "./commands/start.js";
 import { serve } from "./commands/serve.js";
 import { listTasks, openDb } from "./db.js";
 
@@ -11,8 +11,8 @@ switch (command) {
     await newTask(db, rest);
     break;
 
-  case "run":
-    await run(db, rest);
+  case "start":
+    await start(db, rest);
     break;
 
   case "serve":
@@ -27,7 +27,7 @@ switch (command) {
 
   default:
     console.error(
-      "usage: dispatch new-task <description> [repo-url] | tasks | run <task-id> | serve",
+      "usage: dispatch new-task <description> [repo-url] | tasks | start <task-id> | serve",
     );
     process.exit(1);
 }
