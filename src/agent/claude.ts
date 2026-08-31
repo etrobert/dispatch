@@ -4,7 +4,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { requireEnv } from "./env.js";
+import { requireEnv } from "../env.js";
 
 export async function runStep<Schema extends z.ZodType>({
   sessionId,

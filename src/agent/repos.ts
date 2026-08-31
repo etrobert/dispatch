@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { requireEnv } from "./env.js";
+import { requireEnv } from "../env.js";
 
 // A bare clone dispatch owns, so it never writes into a checkout someone else
 // is using and git never refuses it as another user's repository.

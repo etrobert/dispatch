@@ -1,13 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { runStep } from "./claude.js";
-import {
-  failRun,
-  finishRun,
-  recordToolFailure,
-  startRun,
-  type Db,
-} from "./db.js";
+import { type Db } from "../db.js";
+import { failRun, finishRun, recordToolFailure, startRun } from "./db.js";
 import { ensureRepo } from "./repos.js";
 import { withBranch } from "./worktree.js";
 

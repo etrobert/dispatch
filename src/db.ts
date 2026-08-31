@@ -3,7 +3,7 @@ import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { requireEnv } from "./env.js";
-import { runs, steps, tasks, toolFailures } from "./schema.js";
+import { steps, tasks } from "./schema.js";
 
 export type Db = ReturnType<typeof drizzle>;
 
@@ -101,46 +101,6 @@ export async function claimNextTask(db: Db) {
   return task;
 }
 
-export async function startRun(
-  db: Db,
-  run: {
-    runId: string;
-    sessionId: string;
-    prompt: string;
-    repo: string;
-    branch: string;
-    model: string;
-  },
-): Promise<void> {
-  await db.insert(runs).values({ ...run, status: "running" });
-}
-
-export async function finishRun(
-  db: Db,
-  run: {
-    runId: string;
-    output: unknown;
-    costUsd: number;
-    turns: number;
-    durationMs: number;
-  },
-): Promise<void> {
-  await db
-    .update(runs)
-    .set({ ...run, status: "done", finishedAt: new Date() })
-    .where(eq(runs.runId, run.runId));
-}
-
-export async function failRun(
-  db: Db,
-  run: { runId: string; error: string },
-): Promise<void> {
-  await db
-    .update(runs)
-    .set({ status: "failed", error: run.error, finishedAt: new Date() })
-    .where(eq(runs.runId, run.runId));
-}
-
 export async function startStep(
   db: Db,
   step: {
@@ -178,23 +138,23 @@ export async function failStep(db: Db, stepId: string): Promise<void> {
     .where(eq(steps.stepId, stepId));
 }
 
-// Steps waiting on a human, with what a follow-up needs to work on their pull
-// request.
+// Steps waiting on a human. Where their work lives is the run's to say, so the
+// caller asks the agent service rather than joining its table.
 export async function reviewSteps(db: Db) {
   const rows = await db
     .select({
       stepId: steps.stepId,
       taskId: steps.taskId,
       prUrl: steps.prUrl,
-      repo: runs.repo,
-      branch: runs.branch,
+      runId: steps.runId,
     })
     .from(steps)
-    .innerJoin(runs, eq(steps.runId, runs.runId))
     .where(eq(steps.status, "review"));
 
   return rows.flatMap((row) =>
-    row.prUrl === null ? [] : [{ ...row, prUrl: row.prUrl }],
+    row.prUrl === null || row.runId === null
+      ? []
+      : [{ ...row, prUrl: row.prUrl, runId: row.runId }],
   );
 }
 
@@ -219,14 +179,4 @@ export async function settleStep(
   status: "done" | "closed",
 ): Promise<void> {
   await db.update(steps).set({ status }).where(eq(steps.stepId, stepId));
-}
-
-// Recorded as each failure arrives rather than at the end, so a run that dies
-// does not take the list with it.
-export async function recordToolFailure(
-  db: Db,
-  runId: string,
-  failure: { toolName: string; error: string; durationMs: number | null },
-): Promise<void> {
-  await db.insert(toolFailures).values({ runId, ...failure });
 }

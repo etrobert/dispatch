@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { answeredComments, reviewSteps, settleStep, type Db } from "./db.js";
 import { listComments, prState, type PrComment } from "./github.js";
+import { runWorkspace } from "./agent/index.js";
 import { takeStep } from "./step.js";
 
 type ReviewStep = Awaited<ReturnType<typeof reviewSteps>>[number];
@@ -30,6 +31,10 @@ async function followUp(db: Db, step: ReviewStep): Promise<void> {
 
   if (fresh.length === 0) return;
 
+  const workspace = await runWorkspace(db, step.runId);
+
+  if (workspace === undefined) throw new Error(`no run ${step.runId}`);
+
   console.log(`step ${step.stepId} · ${fresh.length} comment(s) to answer`);
 
   await Promise.all(
@@ -38,8 +43,8 @@ async function followUp(db: Db, step: ReviewStep): Promise<void> {
         taskId: step.taskId,
         parentStepId: step.stepId,
         commentId: String(comment.id),
-        prompt: followUpPrompt(comment, step.branch),
-        workspace: { repo: step.repo, branch: step.branch },
+        prompt: followUpPrompt(comment, workspace.branch),
+        workspace,
         // No prUrl: a follow-up pushes to the pull request its parent opened,
         // so it finishes rather than waiting on a review of its own.
         outputSchema: z.object({ summary: z.string() }),
